@@ -1,6 +1,10 @@
 # Mei's Baldur's Gate 3 Character Builder
 
-**HUMAN-WRITTEN PREFACE:** This app was, for better or for worse, entirely vibe-coded with Claude. Take it with a grain of salt. The idea for this came from being exhausted by the tedium of extracting assets one by one, searching the virtualtextures files and spending hours matching strings and CTRL-F'ing configs. I'm by no means a programmer myself, but I am an artist and I know what things I need out of a tool to facilitate my own creative process. AI should, if used, be used responsibly, and in a way that doesn't replace your own abilities, but rather brings those skills you already have forward.
+**HUMAN-WRITTEN PREFACE:** This app was, for better or for worse, entirely vibe-coded with Claude. Take it with a grain of salt. The idea for this came from being exhausted by the tedium of extracting assets one by one, searching the virtualtextures files and spending hours matching strings and CTRL-F'ing configs.
+
+I'm by no means a programmer myself, but I am an artist and I know what things I need out of a tool to facilitate my own creative process. AI should, IF used, be used responsibly, and in a way that doesn't replace your own abilities, but rather brings those skills you already have forward. This app is what I'd consider within that range of facilitating my skills as an artist by enabling asset acquisition that was previously not possible or tedious.
+
+I also asked it to add chest bones. Because why not.
 
 <img width="1272" height="854" alt="Screenshot 2026-11-01 at 21 45 18" src="https://github.com/user-attachments/assets/0c725dfa-092f-4a47-a83e-e99b51ca9969" /> <img width="1272" height="854" alt="Screenshot 2026-11-01 at 21 47 14" src="https://github.com/user-attachments/assets/80f9e3fb-714c-4279-a1d9-92a3d8b8b966" />
 
