@@ -1,4 +1,8 @@
-# Baldur's Gate Assembler
+# Mei's Baldur's Gate 3 Character Builder
+
+**HUMAN-WRITTEN PREFACE:** This app was, for better or for worse, entirely vibe-coded with Claude. Take it with a grain of salt. The idea for this came from being exhausted by the tedium of extracting assets one by one, searching the virtualtextures files and spending hours matching strings and CTRL-F'ing configs. I'm by no means a programmer myself, but I am an artist and I know what things I need out of a tool to facilitate my own creative process. AI should, if used, be used responsibly, and in a way that doesn't replace your own abilities, but rather brings those skills you already have forward.
+
+---
 
 Build Baldur's Gate 3 characters (race, body, head, hair, colours, tattoos, makeup, gear and dyes) from your own
 game install and export them for Blender, Unity, Slate or VTubing apps. It works like the game's character creator,
