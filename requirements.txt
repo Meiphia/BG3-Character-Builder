@@ -1,0 +1,5 @@
+numpy
+pillow
+lz4
+zstandard
+pywebview

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv*/
+# PyInstaller
+build/
+dist/
+*.spec
+# local data: caches, saved characters, dev scratch, exports
+_cache/
+_dev/
+Characters/
+exports/
+.DS_Store
+# game files copied next to the app
+PAKs/

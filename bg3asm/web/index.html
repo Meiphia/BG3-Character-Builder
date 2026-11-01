@@ -1,0 +1,1723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baldur's Gate Assembler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #100e12; --panel: #18151b; --panel2: #201c24; --line: #2e2833; --text: #e9e3d8;
+    --muted: #9a9198; --gold: #c9a45c; --gold2: #e6c98a; --bad: #e07a6a; --ok: #8fc48a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.4 Inter, -apple-system, system-ui, sans-serif; }
+  body { display: grid; grid-template-columns: 400px 1fr; grid-template-rows: 100vh; height: 100vh; overflow: hidden; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; height: 100vh;
+    min-height: 0; padding-bottom: 48px; box-sizing: border-box; }
+  main { height: 100vh; min-height: 0; }
+  header { padding: 18px 20px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0;
+    background: linear-gradient(var(--panel), var(--panel) 85%, transparent); z-index: 2; }
+  h1 { font: 700 18px Cinzel, Georgia, serif; letter-spacing: .06em; margin: 0; color: var(--gold2); }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+  details { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; padding: 12px 20px; font: 500 13px Cinzel, Georgia, serif; letter-spacing: .08em;
+    color: var(--gold); list-style: none; display: flex; justify-content: space-between; }
+  summary::after { content: "▾"; color: var(--muted); }
+  details:not([open]) summary::after { content: "▸"; }
+  .sec { padding: 0 20px 16px; display: grid; gap: 10px; }
+  label.f, div.f { display: grid; gap: 4px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  select, input[type=text], input[type=search] { width: 100%; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: inherit; }
+  select:focus, input:focus { outline: 1px solid var(--gold); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bodies { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .chip { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px;
+    padding: 7px 4px; cursor: pointer; font: inherit; text-align: center; }
+  .chip.on { border-color: var(--gold); color: var(--gold2); background: #2a2218; }
+  .chip:disabled { opacity: .35; cursor: default; }
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(22px, 1fr)); gap: 4px; max-height: 120px; overflow-y: auto; padding: 2px; }
+  .sw button { aspect-ratio: 1; border-radius: 4px; border: 1px solid #0006; cursor: pointer; padding: 0; }
+  .sw button.on { outline: 2px solid var(--gold2); outline-offset: 1px; }
+  .swname { color: var(--text); font-size: 12px; text-transform: none; letter-spacing: 0; }
+  input[type=range] { width: 100%; accent-color: var(--gold); }
+  .pierce { max-height: 160px; overflow-y: auto; display: grid; gap: 2px; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+  .pierce label { display: flex; gap: 6px; align-items: center; color: var(--text); font-size: 12px; text-transform: none; letter-spacing: 0; }
+  .btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .btn { background: #2a2218; border: 1px solid var(--gold); color: var(--gold2); border-radius: 6px; padding: 9px; cursor: pointer; font: 600 12px Inter, sans-serif; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.ghost { background: transparent; border-color: var(--line); color: var(--text); }
+  main { position: relative; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hud { position: absolute; left: 16px; bottom: 14px; right: 16px; display: flex; gap: 12px; align-items: center;
+    color: var(--muted); font-size: 12px; pointer-events: none; }
+  .hud .pill { background: #000a; border: 1px solid var(--line); padding: 5px 10px; border-radius: 999px; pointer-events: auto; }
+  .spin { width: 10px; height: 10px; border: 2px solid var(--gold); border-right-color: transparent; border-radius: 50%;
+    display: inline-block; animation: s .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .toolbar { position: absolute; top: 14px; right: 16px; left: 16px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .toolbar label { white-space: nowrap; }
+  .toolbar { pointer-events: none; } .toolbar > * { pointer-events: auto; }
+  .toolbar label { background: #000a; border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; color: var(--text); font-size: 12px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .msg { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .msg.err { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .warn { position: absolute; top: 14px; left: 16px; max-width: 46%; font-size: 11px; color: #e8c58a; background: #000a;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: none; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font: 500 14px Cinzel, serif; letter-spacing: .1em; }
+  .setup { position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
+    background: radial-gradient(ellipse at 50% 30%, #2a2018ee, #0b090ced 70%); }
+  .setup.on { display: grid; }
+  .setup .card { width: min(560px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 24px; display: grid; gap: 14px; box-shadow: 0 20px 60px #000a; }
+  .setup h2 { margin: 0; font: 700 20px Cinzel, Georgia, serif; color: var(--gold2); letter-spacing: .05em; }
+  .setup p { margin: 0; color: var(--muted); line-height: 1.5; }
+  .setup .found { display: grid; gap: 6px; }
+  .setup .found button { text-align: left; word-break: break-all; }
+  .setup code { font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--text); }
+  .thumb { width: 52px; height: 52px; border-radius: 6px; border: 1px solid var(--line); background: #0d0b10 center/contain no-repeat;
+    cursor: pointer; flex: none; position: relative; }
+  .thumb:hover { border-color: var(--gold); }
+  .thumb.none::after { content: "+"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 20px; }
+  .picker { position: fixed; z-index: 40; left: 12px; top: 60px; bottom: 16px; width: 376px; display: none; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 16px 48px #000c; }
+  .picker.on { display: flex; }
+  .picker header { position: static; display: flex; gap: 8px; align-items: center; padding: 10px; }
+  .picker .grid { overflow-y: auto; padding: 8px 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+  .picker .tile { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px; cursor: pointer;
+    display: grid; gap: 3px; text-align: center; font-size: 10px; line-height: 1.2; color: var(--text); }
+  .picker .tile:hover, .picker .tile.on { border-color: var(--gold); }
+  .picker .tile .ic { aspect-ratio: 1; background: #0d0b10 center/contain no-repeat; border-radius: 4px; }
+  .picker .tile .ic.missing { background: repeating-linear-gradient(45deg, #1a1620, #1a1620 6px, #15121a 6px, #15121a 12px); }
+  .combo { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px 4px 4px; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+  .combo:hover { border-color: var(--gold); }
+  .ct { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
+  .ct b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ct small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ca { color: var(--muted); }
+  .ci { width: 36px; height: 36px; flex: none; border-radius: 4px; background: #0d0b10 center/contain no-repeat; }
+  .ci.big { width: 44px; height: 44px; }
+  .ci.missing { background: repeating-linear-gradient(45deg, #1a1620, #1a1620 5px, #15121a 5px, #15121a 10px); }
+  .dropdown { position: fixed; z-index: 45; display: flex; flex-direction: column; gap: 6px; padding: 8px;
+    background: var(--panel); border: 1px solid var(--gold); border-radius: 8px; box-shadow: 0 14px 40px #000c; }
+  .dropdown .dl { overflow-y: auto; display: grid; gap: 2px; }
+  .dropdown .opt { display: flex; gap: 10px; align-items: center; padding: 3px 6px 3px 3px; border-radius: 6px; cursor: pointer; }
+  .dropdown .opt:hover { background: var(--panel2); }
+  .dropdown .opt.on { background: #2a2218; outline: 1px solid var(--gold); }
+  .dropdown .dh { color: var(--gold); font: 500 11px Cinzel, Georgia, serif; letter-spacing: .08em; padding: 8px 4px 4px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="dropdown" id="recentpanel" style="display:none;width:420px;max-height:70vh">
+  <div class="msg" style="display:flex;justify-content:space-between;align-items:center;gap:6px">Click a look to go back to it
+    <span style="display:flex;gap:4px"><button class="btn ghost" id="recentclear" style="padding:3px 8px">Clear</button>
+    <button class="btn ghost pclose" title="Close (Esc)" style="padding:3px 8px">✕</button></span></div>
+  <div id="recentgrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;overflow-y:auto"></div>
+</div>
+<div class="dropdown" id="cappanel" style="display:none;width:300px;gap:10px">
+  <div class="msg" style="display:flex;justify-content:space-between;align-items:center">Capture
+    <button class="btn ghost pclose" title="Close (Esc)" style="padding:3px 8px">✕</button></div>
+  <label class="f">Background<select id="capbg">
+    <option value="transparent">Transparent</option><option value="viewer">As in the viewer</option>
+    <option value="solid">Solid colour</option><option value="gradient">Gradient</option><option value="astral">Astral sky</option></select></label>
+  <div class="row" id="capcols"><label class="f">Colour<input type="color" id="capc1" value="#1b1622"></label>
+    <label class="f">Gradient to<input type="color" id="capc2" value="#4a2a52"></label></div>
+  <label style="display:flex;gap:8px;align-items:center;font-size:12px"><input type="checkbox" id="capfloor"> Show floor</label>
+  <label class="f">Portrait size<select id="capscale"><option value="1">Window size</option><option value="2" selected>2×</option><option value="3">3×</option></select></label>
+  <label class="f">Turntable length<select id="caplen"><option value="5">5 s</option><option value="8" selected>8 s</option><option value="12">12 s</option></select></label>
+  <div class="row"><button class="btn" id="shotbtn">Portrait</button><button class="btn" id="spinbtn">Turntable</button></div>
+  <label class="f" title="Load an in-game screenshot to compare colours and proportions against">Reference image
+    <input type="file" id="reffile" accept="image/*"></label>
+  <div class="row"><label class="f">Show<select id="refmode"><option value="off">Hidden</option><option value="overlay">Overlay</option><option value="side">Side by side</option></select></label>
+    <label class="f">Opacity<input type="range" id="refop" min="0.1" max="1" step="0.05" value="0.5"></label></div>
+  <div class="msg">Lighting follows the Light setting in the toolbar. Videos can't be transparent, so they use the viewer background instead.</div>
+</div>
+<div class="setup" id="setup"><div class="card">
+  <h2>Where is Baldur's Gate 3?</h2>
+  <p id="setupintro">Point the Assembler at your game install. Everything is read from your own game files, so nothing
+    is downloaded. You can pick the install folder, the <code>Baldur's Gate 3.app</code>, or its <code>Data</code> folder.</p>
+  <div class="found" id="setupfound"></div>
+  <div class="row" style="grid-template-columns:1fr auto">
+    <input type="text" id="setuppath" placeholder="Path to the game folder">
+    <button class="btn ghost" id="setupbrowse" style="padding:6px 12px">Browse…</button>
+  </div>
+  <div class="row" style="grid-template-columns:1fr auto">
+    <div class="msg" id="setupmsg"></div>
+    <button class="btn" id="setupgo" style="padding:8px 18px">Use this folder</button>
+  </div>
+  <button class="btn ghost" id="setupcancel" style="display:none">Cancel</button>
+</div></div>
+<aside>
+  <header>
+    <h1>Baldur's Gate Assembler</h1>
+    <p>Assemble characters straight from your game files.</p>
+  </header>
+
+  <details><summary>Characters</summary><div class="sec">
+    <div class="row" style="grid-template-columns:1fr auto">
+      <input type="text" id="charname" placeholder="Character name">
+      <button class="btn" id="charsave" style="padding:6px 12px">Save</button>
+    </div>
+    <div class="row" style="grid-template-columns:1fr auto auto">
+      <select id="charlist"></select>
+      <button class="btn ghost" id="charload" style="padding:6px 10px">Load</button>
+      <button class="btn ghost" id="chardel" style="padding:6px 10px">Delete</button>
+    </div>
+    <div class="f"><span>Load a game character</span><div id="originpick"></div></div>
+    <label class="f">Import Tav from a BG3 save<select id="savelist"><option value="">Loading saves…</option></select></label>
+    <div class="row" style="grid-template-columns:1fr auto">
+      <button class="btn ghost" id="saveimport">Import from save</button>
+      <select id="partyfmt" title="Format for the party export" style="width:auto">
+        <option value="glb">GLB</option><option value="folder">Folders</option><option value="fbx">FBX</option><option value="vrm">VRM</option></select>
+    </div>
+    <button class="btn ghost" id="partyexport" title="Export Tav and every companion in the party, in their current gear">Export whole party</button>
+    <label class="f" id="candwrap" style="display:none">Characters in this save<select id="candlist"></select></label>
+    <div class="msg" id="charmsg"></div>
+  </div></details>
+
+  <details open><summary>Origin</summary><div class="sec">
+    <div class="row">
+      <label class="f">Race<select id="race"></select></label>
+      <label class="f">Subrace<select id="subrace"></select></label>
+    </div>
+    <div class="f lbl">Body<div class="bodies" id="bodies"></div></div>
+  </div></details>
+
+  <details open><summary>Appearance</summary><div class="sec" id="appearance"></div></details>
+  <details open><summary>Colours</summary><div class="sec" id="colors"></div></details>
+  <details><summary>Tattoos &amp; Makeup</summary><div class="sec" id="markings"></div></details>
+  <details><summary>Skin &amp; Weathering</summary><div class="sec" id="weathering"></div></details>
+  <details><summary>Piercings</summary><div class="sec">
+    <input type="search" id="pfilter" placeholder="Filter piercings…">
+    <div class="pierce" id="piercings"></div>
+  </div></details>
+  <details open><summary>Equipment</summary><div class="sec" id="equipment"></div></details>
+
+  <details open><summary>Export</summary><div class="sec">
+    <label class="f">Name<input type="text" id="exname" value="My Character"></label>
+    <div class="row">
+      <label class="f">Pose<select id="expose"><option value="tpose">T-pose (bind)</option><option value="frame">As in the viewport (frame or your pose)</option></select></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text);align-self:end;padding-bottom:8px"
+             title="Adds the animation playing in the viewport as an action (GLB / Project folder / FBX)">
+        <input type="checkbox" id="exanim"> Include animation</label>
+    </div>
+    <div class="f" id="clipbox"><span>Animation clips <span style="opacity:.6">(each becomes its own action; empty = the one playing)</span></span>
+      <div id="cliplist" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+      <div style="display:flex;gap:6px"><button class="btn ghost" id="clipadd" style="padding:4px 10px">+ Add playing animation</button>
+        <button class="btn ghost" id="clipclear" style="padding:4px 10px">Clear</button></div></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text)" title="Adds Apple's 52 ARKit blendshapes as shape keys (Perfect Sync) for face tracking in Slate, VSeeFace, Warudo etc.">
+      <input type="checkbox" id="exarkit" checked> ARKit face shapes (Perfect Sync)</label>
+    <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text)" title="Re-frames every bone so rotating about X nods, Y turns and Z tilts in Blender, Slate, Unity etc. The mesh and animation look identical. Untick for the game's own (Maya-style) bone axes.">
+      <input type="checkbox" id="exaxes" checked> World-aligned bone axes</label>
+    <label class="f" title="Texture size in exports. Ultra keeps the game's full 4K textures (bigger files, slower export).">Texture quality
+      <select id="extex"><option value="1024">Light (1K)</option><option value="2048" selected>High (2K)</option><option value="4096">Ultra (4K, as in the game)</option></select></label>
+    <div class="btns">
+      <button class="btn" data-fmt="glb">GLB</button>
+      <button class="btn" data-fmt="folder">Project folder</button>
+      <button class="btn" data-fmt="fbx" id="fbxbtn">FBX</button>
+      <button class="btn" data-fmt="vrm" title="VRM 1.0 avatar for VSeeFace, Warudo, VRoid tools… (includes the ARKit face shapes)">VRM</button>
+    </div>
+    <div class="msg" id="exmsg"></div>
+  </div></details>
+
+  <details><summary>Settings</summary><div class="sec">
+    <div class="f">Game folder<div class="msg" id="gamedir" style="text-transform:none;letter-spacing:0"></div></div>
+    <button class="btn ghost" id="changedir">Change game folder…</button>
+  </div></details>
+</aside>
+
+<main>
+  <canvas id="view"></canvas>
+  <img id="refimg" alt="" style="display:none;position:absolute;pointer-events:none;object-fit:contain;z-index:4">
+  <div class="loading" id="loading">Reading the Weave…</div>
+  <div class="warn" id="warn"></div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="tex" checked> Textures</label>
+    <label><input type="checkbox" id="auto" checked> Auto-update</label>
+    <label><input type="checkbox" id="anim" checked> Play</label>
+    <button class="btn ghost" id="helpbtn" style="padding:5px 10px;border-radius:999px" title="Keyboard shortcuts (?)">?</button>
+    <button class="btn ghost" id="posebtn" style="padding:5px 12px;border-radius:999px" title="Pose by hand (P). Click a joint to rotate/move it, drag hand/foot boxes for IK. Esc leaves pose mode.">Pose</button>
+    <span id="posetools" style="display:none;gap:2px;padding:2px;border-radius:999px;background:#000a">
+      <button class="chip on" data-ptool="rotate" title="Rotate joints (E)">Rotate</button>
+      <button class="chip" data-ptool="move" title="Move joints (W)">Move</button>
+      <button class="chip" data-ptool="both" title="Rotate and move (Q)">Both</button>
+      <button class="chip" id="poseresetall" title="Back to the animation frame you started from">Reset pose</button></span>
+    <label title="Infernal flames over the skin, like a raging Karlach (viewer, portraits and turntables)"><input type="checkbox" id="fire"> On fire</label>
+    <span id="animpick" style="min-width:200px;max-width:260px"></span>
+    <span id="facepick" style="min-width:150px;max-width:200px"></span>
+    <label>Light <select id="lights" style="background:none;border:0;color:inherit;font:inherit">
+      <option value="studio">Studio</option><option value="daylight">Daylight</option><option value="tavern">Tavern</option>
+      <option value="night">Night</option><option value="astral">Astral</option><option value="golden">Golden hour</option><option value="moonlit">Moonlit</option><option value="infernal">Infernal</option><option value="fey">Feywild</option><option value="rim">Rim light</option><option value="spotlight">Spotlight</option><option value="softbox">Softbox (white)</option><option value="flat">Flat</option><optgroup label="The game's own skies"><option value="gamenoon">Noon sky</option><option value="gameastral">Astral sky</option><option value="gameethereal">Ethereal sky</option></optgroup></select></label>
+    <input type="checkbox" id="astral" style="display:none">
+    <label title="Preview the ARKit face shapes that are added on export">Face <select id="faceshape" style="background:none;border:0;color:inherit;font:inherit;max-width:150px"><option value="">—</option></select>
+      <input type="range" id="faceamt" min="0" max="1" step="0.05" value="1" style="width:70px"></label>
+    <button class="btn ghost" id="undobtn" style="padding:5px 10px;border-radius:999px" title="Undo (⌘Z)" disabled>↶</button>
+    <button class="btn ghost" id="redobtn" style="padding:5px 10px;border-radius:999px" title="Redo (⇧⌘Z)" disabled>↷</button>
+    <button class="btn ghost" id="recentbtn" style="padding:5px 12px;border-radius:999px" title="Recent looks">Recent ▾</button>
+    <button class="btn ghost" id="capbtn" style="padding:5px 12px;border-radius:999px" title="Portrait image or turntable video">Capture ▾</button>
+    <button class="btn ghost" id="random" style="padding:5px 12px;border-radius:999px">Randomise</button>
+  </div>
+  <div class="hud"><span class="pill" id="status">Loading…</span></div>
+</main>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+// ------------------------------------------------------------------ viewport
+const canvas = $("view");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = envTex;
+const key = new THREE.DirectionalLight(0xffffff, 1); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.015;
+Object.assign(key.shadow.camera, { left: -1.3, right: 1.3, top: 2.4, bottom: -0.3, near: 0.5, far: 12 });
+scene.add(key); scene.add(key.target);
+const fill = new THREE.DirectionalLight(0xffffff, 0.3); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.5); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(1.4, 96), new THREE.MeshStandardMaterial({ color: 0x18151b, roughness: 1 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor); floor.visible = false;
+// no visible floor disc: just the character's contact shadow on an invisible ground
+const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.38 }));
+shadowCatcher.rotation.x = -Math.PI / 2; shadowCatcher.position.y = 0.001; shadowCatcher.receiveShadow = true; scene.add(shadowCatcher);
+// lighting presets: key / fill / rim (colour, intensity, position), environment strength, exposure, backdrop
+const LIGHTS = {
+  studio:  { key: [0xfff3e6, 2.2, [1.6, 3.0, 2.4]], fill: [0xdfe8ff, 0.35, [-2.4, 1.6, 1.8]], rim: [0xbfd2ff, 1.4, [-1.5, 2.6, -2.6]], env: 0.55, exp: 1.0, bg: 0x141216, floor: 0x1b181e },
+  daylight:{ key: [0xfff6e8, 3.0, [2.5, 4.5, 2.0]],  fill: [0xcfe0ff, 0.6, [-3, 2, 1]],      rim: [0xffffff, 0.8, [-1, 3, -3]],      env: 1.0, exp: 0.95, bg: 0x8ea4b8, floor: 0x5d5a50 },
+  tavern:  { key: [0xffb36b, 2.4, [1.4, 2.2, 1.8]],  fill: [0x6b4a3a, 0.25, [-2, 1.2, 1]],   rim: [0xff8a3d, 1.6, [-1.6, 2.0, -2.2]], env: 0.22, exp: 1.1, bg: 0x1a0f0a, floor: 0x24160f },
+  night:   { key: [0x9fb8ff, 1.4, [-1.2, 3.5, 2.2]], fill: [0x2a3550, 0.25, [2, 1.2, 1]],     rim: [0x7aa0ff, 1.8, [1.6, 2.4, -2.6]],  env: 0.18, exp: 1.15, bg: 0x070a12, floor: 0x0c0f18 },
+  astral:  { key: [0xfff0dc, 2.4, [1.8, 3.2, 2.6]],  fill: [0x8a7cff, 0.45, [-2.6, 1.6, 1.6]], rim: [0xd27bff, 2.0, [-1.4, 2.8, -2.8]], env: 0.5, exp: 1.05, bg: 0x1a0d2a, floor: 0x2a2430 },
+  golden:  { key: [0xffc27a, 2.8, [2.6, 2.0, 1.6]],  fill: [0x6d7fb0, 0.35, [-2.4, 1.4, 1.6]], rim: [0xffa850, 1.6, [-1.2, 2.2, -2.6]], env: 0.45, exp: 1.0, bg: 0x2b1c14, floor: 0x2a2018 },
+  moonlit: { key: [0xb8c8ff, 1.6, [-1.6, 3.6, 1.8]], fill: [0x1d2440, 0.25, [2, 1.2, 1]],     rim: [0x9fc0ff, 2.4, [1.4, 2.6, -2.8]],  env: 0.15, exp: 1.2, bg: 0x05070d, floor: 0x0b0e16 },
+  infernal:{ key: [0xff6a3a, 2.6, [1.6, 2.4, 2.0]],  fill: [0x3a0d08, 0.3, [-2, 1.2, 1]],     rim: [0xff2a10, 2.6, [-1.4, 2.4, -2.6]], env: 0.18, exp: 1.1, bg: 0x140504, floor: 0x1c0907 },
+  fey:     { key: [0xe8ffd8, 2.2, [1.4, 3.0, 2.2]],  fill: [0x7a5cff, 0.5, [-2.4, 1.6, 1.6]],  rim: [0x5cffb0, 2.0, [-1.4, 2.6, -2.6]], env: 0.4, exp: 1.05, bg: 0x0c1a14, floor: 0x14221b },
+  rim:     { key: [0xffffff, 0.6, [1.2, 2.6, 2.6]],  fill: [0x8090b0, 0.1, [-2, 1.2, 1]],     rim: [0xffffff, 4.0, [0, 2.6, -2.8]],    env: 0.1, exp: 1.2, bg: 0x050506, floor: 0x0a0a0c },
+  spotlight:{ key: [0xfff2e0, 3.6, [0.3, 4.2, 1.2]], fill: [0x202030, 0.05, [-2, 1.2, 1]],    rim: [0x8899ff, 0.8, [-1, 2.4, -2.6]],   env: 0.08, exp: 1.15, bg: 0x030304, floor: 0x121214 },
+  softbox: { key: [0xffffff, 1.8, [2.0, 2.6, 2.8]],  fill: [0xffffff, 0.9, [-2.6, 2.0, 2.2]], rim: [0xffffff, 1.0, [-1.0, 2.8, -2.6]], env: 0.9, exp: 1.0, bg: 0xd9d6d0, floor: 0xbdb9b2 },
+  gamenoon:{ key: [0xfff1dc, 2.4, [2.4, 4.0, 2.0]],  fill: [0xcfe0ff, 0.15, [-3, 2, 1]],     rim: [0xffffff, 0.7, [-1, 3, -3]],      env: 1.0, exp: 0.95, bg: 0x8ea4b8, floor: 0x5d5a50, sky: "ATM_HDRiSkydome_Noon_Vue_A" },
+  gameastral:{ key: [0xfff0dc, 1.8, [1.8, 3.2, 2.6]], fill: [0x8a7cff, 0.2, [-2.6, 1.6, 1.6]], rim: [0xd27bff, 1.6, [-1.4, 2.8, -2.8]], env: 1.1, exp: 1.0, bg: 0x1a0d2a, floor: 0x2a2430, sky: "ATM_HDRiSkydome_Astral_A" },
+  gameethereal:{ key: [0xf4f0ff, 1.8, [1.6, 3.4, 2.4]], fill: [0xb0c8ff, 0.2, [-2.4, 1.6, 1.6]], rim: [0xc0e0ff, 1.4, [-1.4, 2.8, -2.8]], env: 1.1, exp: 1.0, bg: 0x30384a, floor: 0x3a4050, sky: "ATM_HDRiSkydome_Ethereal_VUE_A" },
+  flat:    { key: [0xffffff, 1.0, [1, 3, 3]],         fill: [0xffffff, 0.6, [-2, 2, 2]],      rim: [0xffffff, 0.4, [0, 2, -3]],        env: 1.2, exp: 0.9, bg: 0x2a2a2e, floor: 0x333338 },
+};
+// the game's HDRi sky domes, decoded by the app, as image-based light (and a soft backdrop)
+const skyCache = {};
+function gameSky(name) {
+  if (!skyCache[name]) skyCache[name] = new Promise((ok, bad) => new THREE.TextureLoader().load("/api/sky?name=" + name, t => {
+    t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+    ok({ bg: t, env: pmrem.fromEquirectangular(t).texture });
+  }, undefined, e => { delete skyCache[name]; bad(e); }));
+  return skyCache[name];
+}
+let eyeEnv = null;     // Larian's eye catchlight HDRi: the bright window glint in every BG3 eye
+function loadEyeEnv() {
+  if (eyeEnv) return;
+  gameSky("ATM_HDRi_EyesCatchlight").then(s => { eyeEnv = s.env; if (model) model.traverse(o => {
+    if (o.isMesh && o.material && o.material.userData.isEye) { o.material.envMap = eyeEnv; o.material.envMapIntensity = 1.4; o.material.needsUpdate = true; } }); }).catch(() => {});
+}
+let curLight = null;
+function applyLights(name) {
+  const L = LIGHTS[name] || LIGHTS.studio; curLight = name;
+  for (const [light, [c, i, p]] of [[key, L.key], [fill, L.fill], [rim, L.rim]]) { light.color.setHex(c); light.intensity = i; light.position.set(...p); }
+  scene.environmentIntensity = L.env; renderer.toneMappingExposure = L.exp;
+  scene.environment = envTex; scene.backgroundBlurriness = 0; floor.visible = false;
+  scene.background = backdrop && backdrop.visible ? astralSky() : new THREE.Color(L.bg); floor.material.color.setHex(L.floor);
+  if (L.sky) gameSky(L.sky).then(s => {
+    if (curLight !== name) return;
+    scene.environment = s.env;
+    if (!(backdrop && backdrop.visible)) { scene.background = s.bg; scene.backgroundBlurriness = 0.25; scene.backgroundIntensity = 0.8; }
+  }).catch(() => setStatus("", "⚠ That sky isn't in this game install"));
+  store.set("bga.lights", name);
+}
+// ---- Astral Plane backdrop (character-creator level, built once from the game files)
+let backdrop = null, skyTex = null;
+function astralSky() {
+  if (skyTex) return skyTex;
+  const c = document.createElement("canvas"); c.width = 2048; c.height = 1024; const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 0, 1024);
+  grad.addColorStop(0, "#07040f"); grad.addColorStop(0.35, "#1d0d33"); grad.addColorStop(0.5, "#4a2160");
+  grad.addColorStop(0.56, "#6b3a74"); grad.addColorStop(0.7, "#24123a"); grad.addColorStop(1, "#0a0614");
+  g.fillStyle = grad; g.fillRect(0, 0, 2048, 1024);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 26; i++) {           // nebula wisps
+    const x = rnd() * 2048, y = 250 + rnd() * 450, r = 80 + rnd() * 260;
+    const n = g.createRadialGradient(x, y, 0, x, y, r);
+    const hue = rnd() < 0.5 ? "190,110,255" : "120,160,255";
+    n.addColorStop(0, "rgba(" + hue + ",0.16)"); n.addColorStop(1, "rgba(" + hue + ",0)");
+    g.fillStyle = n; g.beginPath(); g.ellipse(x, y, r * 1.8, r * 0.6, rnd() * 0.6 - 0.3, 0, 7); g.fill();
+  }
+  for (let i = 0; i < 1400; i++) {         // stars
+    const a = rnd(); g.fillStyle = "rgba(255,245,255," + (0.25 + a * 0.75) + ")";
+    g.fillRect(rnd() * 2048, rnd() * 1024, a > 0.97 ? 2 : 1, a > 0.97 ? 2 : 1);
+  }
+  skyTex = new THREE.CanvasTexture(c); skyTex.mapping = THREE.EquirectangularReflectionMapping;
+  skyTex.colorSpace = THREE.SRGBColorSpace; return skyTex;
+}
+async function setAstral(on) {
+  store.set("bga.astral", on);
+  if (!on) {
+    if (backdrop) backdrop.visible = false;
+    scene.fog = null; floor.visible = true; camera.far = 100; camera.updateProjectionMatrix();
+    applyLights($("lights").value); return;
+  }
+  if (!backdrop) {
+    let st = await (await fetch("/api/backdrop/status")).json();
+    if (st.state !== "ready") {
+      await fetch("/api/backdrop/build", { method: "POST", body: "{}" });
+      while (st.state !== "ready") {
+        if (!$("astral").checked) return;
+        if (st.state === "error") { setStatus("", "⚠ Backdrop: " + st.message); $("astral").checked = false; return; }
+        setStatus("busy", "Building the Astral Plane backdrop (first time only, a minute or two)… " + (st.message || ""));
+        await new Promise(r => setTimeout(r, 1500));
+        st = await (await fetch("/api/backdrop/status")).json();
+      }
+    }
+    setStatus("busy", "Loading backdrop…");
+    const buf = await (await fetch("/api/backdrop.glb")).arrayBuffer();
+    const g = await new GLTFLoader().parseAsync(buf, "");
+    backdrop = g.scene;
+    backdrop.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.frustumCulled = true; } });
+    scene.add(backdrop); setStatus("", "");
+  }
+  if (!$("astral").checked) { backdrop.visible = false; return; }
+  backdrop.visible = true; floor.visible = true;
+  scene.fog = new THREE.Fog(0x2a1540, 30, 220); camera.far = 600; camera.updateProjectionMatrix();
+  if ($("lights").value === "studio") $("lights").value = "astral";
+  applyLights($("lights").value);
+}
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
+camera.position.set(0, 1.25, 4.2);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.0, 0); controls.enableDamping = true; controls.update();
+let model = null, mixer = null;
+const clock = new THREE.Clock();
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+// gentle procedural tail sway (the game's idles don't animate tails)
+let tailBones = [], turntable = null;
+function findTail() {
+  tailBones = [];
+  if (!model) return;
+  model.traverse(o => { const m = /^Tail(\d+)_M$/.exec(o.name); if (o.isBone && m) tailBones.push([+m[1], o, o.quaternion.clone()]); });
+  tailBones.sort((a, b) => a[0] - b[0]);
+  // wing bones are tagged by the assembler (glTF node extras); depth = steps from the wing's root bone
+  wingBones = []; chestBones = [];
+  model.traverse(o => { if (o.isBone && /^Breast_[LR]$/.test(o.name)) chestBones.push({ bone: o, rest: o.position.clone(), p: null }); });
+  model.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert(), p = new THREE.Vector3();
+  model.traverse(o => {
+    if (!o.isBone || (o.userData || {}).bga_slot !== "Wings") return;
+    let d = 0, q = o.parent;
+    while (q && q.isBone && (q.userData || {}).bga_slot === "Wings") { d++; q = q.parent; }
+    o.getWorldPosition(p).applyMatrix4(inv);
+    wingBones.push([o, o.quaternion.clone(), d, p.x >= 0 ? 1 : -1]);
+  });
+}
+let wingBones = [], chestBones = [], clothChains = [];
+// cloth chains (added by the assembler under capes, tabards, skirt panels): verlet particles that follow the
+// animated pose with a bit of lag, swing and gravity, then aim each joint at its particle
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _va = new THREE.Vector3(), _vb = new THREE.Vector3(), _vc = new THREE.Vector3();
+// let the cloth hang in the current (paused or posed) frame: run the simulation with gravity until it rests
+function settleCloth() {
+  if (!clothChains.length || !model) return;
+  for (const ch of clothChains) ch.p = null;
+  for (let k = 0; k < 240; k++) simCloth(1 / 60, true);
+}
+let settleTimer = null;
+function settleSoon() { clearTimeout(settleTimer); settleTimer = setTimeout(settleCloth, 120); }
+function findCloth() {
+  clothChains = [];
+  if (!model) return;
+  const isCloth = o => o && o.isBone && (o.userData || {}).bga_slot === "Cloth";
+  model.traverse(o => {
+    if (!isCloth(o) || isCloth(o.parent)) return;
+    const bones = [o];
+    let c = o;
+    while ((c = c.children.find(isCloth))) bones.push(c);
+    if (bones.length > 1) clothChains.push({ bones, rest: bones.map(b => b.quaternion.clone()), p: null, prev: null, len: null });
+  });
+}
+function simCloth(dt, settle) {
+  // settle: gravity wins (cloth drapes straight down from where it's pinned); otherwise it follows the
+  // animation with a little lag and swing
+  dt = Math.min(dt, 1 / 30);
+  const grav = settle ? 9.8 : 3.0, follow = settle ? 0.003 : 0.12, damp = settle ? 0.8 : 0.9;
+  for (const ch of clothChains) {
+    const B = ch.bones, n = B.length;
+    B.forEach((b, i) => b.quaternion.copy(ch.rest[i]));
+    B[0].updateMatrixWorld(true);
+    const T = B.map(b => b.getWorldPosition(new THREE.Vector3()));
+    if (!ch.p) { ch.p = T.map(v => v.clone()); ch.prev = T.map(v => v.clone()); ch.len = T.map((v, i) => i ? v.distanceTo(T[i - 1]) : 0); }
+    ch.p[0].copy(T[0]); ch.prev[0].copy(T[0]);
+    for (let i = 1; i < n; i++) {
+      const p = ch.p[i], pr = ch.prev[i];
+      _va.copy(p).sub(pr).multiplyScalar(damp);             // inertia with damping
+      pr.copy(p);
+      p.add(_va); p.y -= grav * dt * dt;                     // gravity
+      p.lerp(T[i], follow);                                  // springs back toward the animated pose
+      _vb.copy(p).sub(ch.p[i - 1]); const L = _vb.length() || 1e-6;
+      p.copy(ch.p[i - 1]).addScaledVector(_vb, ch.len[i] / L); // keep segment length
+    }
+    for (let i = 0; i < n - 1; i++) {
+      const b = B[i];
+      b.updateMatrixWorld(true);
+      b.getWorldPosition(_va); B[i + 1].getWorldPosition(_vb);
+      _vb.sub(_va).normalize(); _vc.copy(ch.p[i + 1]).sub(_va).normalize();
+      if (_vb.lengthSq() < 0.5 || _vc.lengthSq() < 0.5) continue;
+      _q1.setFromUnitVectors(_vb, _vc);
+      b.getWorldQuaternion(_q2); _q2.premultiply(_q1);
+      b.parent.getWorldQuaternion(_q1).invert();
+      b.quaternion.copy(_q1.multiply(_q2));
+    }
+  }
+}
+const _cv = new THREE.Vector3(), _cw = new THREE.Vector3(), _ci = new THREE.Matrix4();
+function jiggleChest(dt) {
+  // a damped spring per side: the breast lags behind the chest's motion and settles (preview of what
+  // the exported Breast_L / Breast_R bones do with physics in Blender, Unity or a VRM app)
+  dt = Math.min(dt, 1 / 30);
+  for (const c of chestBones) {
+    c.bone.position.copy(c.rest);
+    c.bone.updateMatrixWorld(true);
+    c.bone.getWorldPosition(_cw);
+    if (!c.p) { c.p = _cw.clone(); c.v = new THREE.Vector3(); }
+    const k = 260, damp = 9;
+    _cv.copy(_cw).sub(c.p).multiplyScalar(k).addScaledVector(c.v, -damp);
+    _cv.y -= 1.2;                                  // a little gravity sag while moving
+    c.v.addScaledVector(_cv, dt); c.p.addScaledVector(c.v, dt);
+    const off = c.p.clone().sub(_cw); if (off.length() > 0.025) off.setLength(0.025);
+    _ci.copy(c.bone.parent.matrixWorld).invert();
+    const a = _cw.clone().add(off).applyMatrix4(_ci), b0 = _cw.clone().applyMatrix4(_ci);
+    c.bone.position.copy(c.rest).add(a.sub(b0));
+  }
+}
+// ---- infernal heat: the engine's heartbeat pulse, and an optional "on fire" layer over the skin
+let heatMats = [], fireShells = [], fireUniforms = { uTime: { value: 0 } };
+const whiteTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); whiteTex.needsUpdate = true;
+function fireMaterial(map, off, amt) {
+  const m = new THREE.MeshBasicMaterial({ map: map || whiteTex, transparent: true, depthWrite: false,
+                                          blending: THREE.AdditiveBlending, side: THREE.FrontSide });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uTime = fireUniforms.uTime; sh.uniforms.uOff = { value: off }; sh.uniforms.uAmt = { value: amt };
+    sh.vertexShader = "uniform float uOff;\nvarying vec3 vFirePos;\n" + sh.vertexShader.replace("#include <begin_vertex>",
+      "#include <begin_vertex>\n  vFirePos = position;\n  transformed += normalize(normal) * uOff;");
+    sh.fragmentShader = `uniform float uTime; uniform float uAmt; varying vec3 vFirePos;
+float fh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float fn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+  return mix(mix(fh(i), fh(i+vec2(1,0)), f.x), mix(fh(i+vec2(0,1)), fh(i+vec2(1,1)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int k = 0; k < 5; k++) { s += a * fn(p); p *= 2.03; a *= 0.5; } return s; }
+` + sh.fragmentShader.replace("#include <dithering_fragment>", `#include <dithering_fragment>
+  vec2 q = vec2(vFirePos.x * 9.0 + vFirePos.z * 7.0, vFirePos.y * 3.6 - uTime * 1.9);
+  float n = fbm(q + vec2(0.0, fbm(q * 0.7 + uTime * 0.3) * 1.5));
+  float tongue = fbm(vec2(vFirePos.x * 22.0 + vFirePos.z * 15.0, vFirePos.y * 7.0 - uTime * 3.1));
+  float crack = clamp(dot(texture2D(map, vMapUv).rgb, vec3(0.6, 0.3, 0.1)) * 3.0, 0.0, 1.0);
+  float f = smoothstep(0.47, 0.98, n * 0.75 + tongue * 0.55) * mix(0.45, 1.0, crack) * uAmt;
+  vec3 col = mix(vec3(0.85, 0.1, 0.01), vec3(1.0, 0.55, 0.12), smoothstep(0.3, 0.9, f));
+  gl_FragColor = vec4(col * f * 1.4, f);`);
+  };
+  return m;
+}
+function setupHeat() {
+  heatMats = []; fireShells = [];
+  if (!model) return;
+  const skins = [];
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    // the engine plates and the glowing cracks over the body pulse with her heartbeat
+    if (/MetalParts|_Body_/.test(o.name)) mats.forEach(m => { if (m.emissiveMap && !heatMats.includes(m)) heatMats.push(m); });
+    if (o.isSkinnedMesh && /_NKD_(Body|Head|Tail)_/.test(o.name) && !/Eyes|Lashes|Tearline|Mouth|Scalp|Genital|Leaf|Nipple/.test(o.name))
+      skins.push(o);
+  });
+  for (const o of skins) {
+    const map = (Array.isArray(o.material) ? o.material[0] : o.material).emissiveMap || null;
+    for (const [off, amt] of [[0.003, 1.0], [0.011, 0.55]]) {
+      const shell = new THREE.SkinnedMesh(o.geometry, fireMaterial(map, off, amt));
+      shell.bind(o.skeleton, o.bindMatrix); shell.frustumCulled = false; shell.renderOrder = 5;
+      shell.position.copy(o.position); shell.quaternion.copy(o.quaternion); shell.scale.copy(o.scale);
+      shell.visible = $("fire").checked; o.parent.add(shell); fireShells.push(shell);
+    }
+  }
+}
+function heat(t) {
+  // BPM 33 like the game's material: a double "lub-dub" beat plus a little flicker
+  const ph = (t * 33 / 60) % 1;
+  const beat = Math.exp(-Math.pow((ph - 0.08) / 0.05, 2)) + 0.6 * Math.exp(-Math.pow((ph - 0.26) / 0.06, 2));
+  const k = 0.7 + 0.55 * beat + 0.08 * Math.sin(t * 23.0) * Math.sin(t * 7.3) + ($("fire").checked ? 0.35 : 0);
+  for (const m of heatMats) m.emissiveIntensity = k;
+  fireUniforms.uTime.value = t;
+}
+// ---- pose mode: click a joint, rotate it with the gizmo
+const gizmo = new TransformControls(camera, renderer.domElement);
+gizmo.setMode("rotate"); gizmo.setSpace("local"); gizmo.size = 0.6;
+const gizmoT = new TransformControls(camera, renderer.domElement);     // the "move" half of Both
+gizmoT.setMode("translate"); gizmoT.setSpace("local"); gizmoT.size = 0.45;
+for (const g of [gizmo, gizmoT]) { g.addEventListener("dragging-changed", e => { controls.enabled = !e.value; }); scene.add(g); }
+let poseTool = store.get("bga.posetool") || "rotate";
+function setPoseTool(t) {
+  poseTool = t; store.set("bga.posetool", t);
+  document.querySelectorAll("[data-ptool]").forEach(b => b.classList.toggle("on", b.dataset.ptool === t));
+  const o = gizmo.object || gizmoT.object;
+  if (o && !o.userData.ik) attachJoint(o);
+}
+function attachJoint(b) {
+  gizmo.detach(); gizmoT.detach();
+  if (poseTool === "rotate" || poseTool === "both") { gizmo.setMode("rotate"); gizmo.setSpace("local"); gizmo.attach(b); }
+  if (poseTool === "move") { gizmo.setMode("translate"); gizmo.setSpace("local"); gizmo.attach(b); }
+  if (poseTool === "both") gizmoT.attach(b);
+}
+document.querySelectorAll("[data-ptool]").forEach(b => b.onclick = () => setPoseTool(b.dataset.ptool));
+setPoseTool(poseTool);
+let poseMode = false, joints = [];
+const SKIP_JOINT = /lip|lid|brow|cheek|nose|smile|tongue|teeth|eye|ear|Dummy|Tip|_end|Sheath|Twist|Mouth|Chin|Pupil|Squint|Corner|Breast|Wing|Cloth_/i;
+function setPoseMode(on) {
+  poseMode = on; $("posebtn").classList.toggle("on", on);
+  joints.forEach(j => j.parent && j.parent.remove(j)); joints = [];
+  gizmo.detach(); gizmoT.detach();
+  $("posetools").style.display = on ? "inline-flex" : "none";
+  ikTargets.forEach(t => scene.remove(t.handle)); ikTargets = [];
+  if (!on || !model) { setStatus("", ""); return; }
+  $("anim").checked = false;                       // hold the current frame while posing
+  $("expose").value = "frame";
+  const geo = new THREE.SphereGeometry(0.012, 10, 8);
+  model.traverse(o => {
+    if (!o.isBone || SKIP_JOINT.test(o.name)) return;
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xe8b04a, depthTest: false, transparent: true, opacity: 0.85 }));
+    m.renderOrder = 999; m.userData.bone = o;
+    const sc = new THREE.Vector3(); o.getWorldScale(sc); m.scale.setScalar(1 / Math.max(sc.x, 1e-3));
+    o.add(m); joints.push(m);
+  });
+  makeIK();
+  setStatus("", "Pose mode · gold joint: rotate · green/blue box: drag a hand/foot · feet stay pinned · U unpins · Esc to finish");
+}
+$("posebtn").onclick = () => setPoseMode(!poseMode);
+$("helpbtn").onclick = () => showShortcuts();
+addEventListener("keydown", e => {
+  if (/input|select|textarea/i.test(e.target.tagName)) return;
+  if (e.key === "Escape" && poseMode) setPoseMode(false);
+  if (poseMode && (e.key === "u" || e.key === "U") && gizmo.object && gizmo.object.userData.ik) {
+    const t = gizmo.object.userData.ik; t.pinned = false; t.bones[2].getWorldPosition(t.handle.position);
+    setStatus("", t.bones[2].name + " unpinned"); }
+  if (poseMode && (e.key === "r" || e.key === "R") && gizmo.object && !gizmo.object.userData.ik) {
+    const o = gizmo.object; if (o.userData.restQ) o.quaternion.copy(o.userData.restQ); if (o.userData.restP) o.position.copy(o.userData.restP); solveAllIK(null); }
+  if (poseMode && !e.metaKey && !e.ctrlKey) {
+    if (e.key === "e" || e.key === "E") setPoseTool("rotate");
+    if (e.key === "w" || e.key === "W") setPoseTool("move");
+    if (e.key === "q" || e.key === "Q") setPoseTool("both");
+  }
+});
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+renderer.domElement.addEventListener("pointerdown", e => {
+  if (!poseMode || gizmo.dragging || gizmo.axis || gizmoT.dragging || gizmoT.axis) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const ikHit = ray.intersectObjects(ikTargets.map(t => t.handle), false)[0];
+  if (ikHit) {
+    gizmoT.detach(); gizmo.setMode("translate"); gizmo.setSpace("world"); gizmo.attach(ikHit.object);
+    setStatus("", "Moving " + ikHit.object.userData.ik.bones[2].name + " · the limb follows · U unpins it");
+    return;
+  }
+  const hit = ray.intersectObjects(joints, false)[0];
+  if (!hit) return;
+  joints.forEach(j => j.material.color.setHex(0xe8b04a)); hit.object.material.color.setHex(0xff4a3a);
+  const b = hit.object.userData.bone;
+  if (!b.userData.restQ) { b.userData.restQ = b.quaternion.clone(); b.userData.restP = b.position.clone(); }
+  attachJoint(b);
+  setStatus("", "Posing " + b.name + " · drag the rings · R resets it · Esc to finish");
+});
+
+// ---- limb IK in pose mode: drag a hand/foot target and the arm/leg follows (two-bone solve, keeps the
+// elbow/knee bending the way it already does). Feet stay pinned while you pose the rest; U unpins a limb.
+const LIMBS = [["Shoulder_L", "Elbow_L", "Wrist_L"], ["Shoulder_R", "Elbow_R", "Wrist_R"],
+               ["Hip_L", "Knee_L", "Ankle_L"], ["Hip_R", "Knee_R", "Ankle_R"]];
+let ikTargets = [];
+const _ia = new THREE.Vector3(), _ib = new THREE.Vector3(), _ic = new THREE.Vector3(), _it = new THREE.Vector3(),
+      _iq = new THREE.Quaternion(), _iq2 = new THREE.Quaternion(), _ie = new THREE.Quaternion();
+function aimBone(bone, from, to) {
+  // rotate bone (in world space, about its own origin) so the direction `from` turns into `to`
+  if (from.lengthSq() < 1e-10 || to.lengthSq() < 1e-10) return;
+  _iq.setFromUnitVectors(from.clone().normalize(), to.clone().normalize());
+  bone.getWorldQuaternion(_iq2); _iq2.premultiply(_iq);
+  bone.parent.getWorldQuaternion(_iq).invert();
+  bone.quaternion.copy(_iq.multiply(_iq2));
+  bone.updateMatrixWorld(true);
+}
+function solveLimb(t) {
+  const [A, B, C] = t.bones;
+  A.updateMatrixWorld(true);
+  C.getWorldQuaternion(_ie);                         // keep the hand/foot's own orientation
+  A.getWorldPosition(_ia); B.getWorldPosition(_ib); C.getWorldPosition(_ic);
+  t.handle.getWorldPosition(_it);
+  const a = _ia.distanceTo(_ib), b = _ib.distanceTo(_ic);
+  const toT = _it.clone().sub(_ia); let c = toT.length();
+  c = Math.min(Math.max(c, Math.abs(a - b) + 1e-4), a + b - 1e-4);
+  const dir = toT.normalize();
+  // bend plane from the current pose (pole = where the elbow/knee points now)
+  const pole = _ib.clone().sub(_ia); pole.sub(dir.clone().multiplyScalar(pole.dot(dir)));
+  if (pole.lengthSq() < 1e-8) pole.set(0, 0, t.leg ? 1 : -1).sub(dir.clone().multiplyScalar(dir.z * (t.leg ? 1 : -1)));
+  pole.normalize();
+  const cosA = (a * a + c * c - b * b) / (2 * a * c), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+  const want = _ia.clone().add(dir.clone().multiplyScalar(cosA * a)).add(pole.multiplyScalar(sinA * a));
+  aimBone(A, _ib.clone().sub(_ia), want.clone().sub(_ia));
+  B.getWorldPosition(_ib); C.getWorldPosition(_ic);
+  aimBone(B, _ic.clone().sub(_ib), _it.clone().sub(_ib));
+  // restore end orientation
+  C.parent.getWorldQuaternion(_iq).invert(); C.quaternion.copy(_iq.multiply(_ie)); C.updateMatrixWorld(true);
+}
+function solveAllIK(except) { for (const t of ikTargets) if (t.pinned && t !== except) solveLimb(t); }
+function makeIK() {
+  ikTargets.forEach(t => scene.remove(t.handle)); ikTargets = [];
+  if (!model) return;
+  const byName = {}; model.traverse(o => { if (o.isBone) byName[o.name] = o; });
+  for (const names of LIMBS) {
+    const bones = names.map(n => byName[n]); if (bones.some(b => !b)) continue;
+    const leg = /Hip/.test(names[0]);
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.035),
+      new THREE.MeshBasicMaterial({ color: leg ? 0x4aa3ff : 0x5ad1a0, depthTest: false, transparent: true, opacity: 0.8 }));
+    h.renderOrder = 999; bones[2].getWorldPosition(h.position); scene.add(h);
+    const t = { bones, handle: h, leg, pinned: leg };
+    h.userData.ik = t; ikTargets.push(t);
+  }
+}
+const onGizmoChange = () => {
+  const o = gizmo.object || gizmoT.object; if (!o) return;
+  if (o.userData.ik) { o.userData.ik.pinned = true; solveLimb(o.userData.ik); solveAllIK(o.userData.ik); }
+  else {                                              // rotating the body keeps pinned hands/feet in place;
+    for (const t of ikTargets) {                     // rotating a joint of a limb itself re-pins it where it ends up
+      if (t.bones.includes(o)) { t.bones[2].updateMatrixWorld(true); t.bones[2].getWorldPosition(t.handle.position); }
+      else if (t.pinned) solveLimb(t);
+    }
+  }
+};
+gizmo.addEventListener("objectChange", onGizmoChange); gizmoT.addEventListener("objectChange", onGizmoChange);
+for (const g of [gizmo, gizmoT]) g.addEventListener("objectChange", settleSoon);   // re-drape after each pose change
+// "Reset pose": every joint touched in this pose session goes back to where it started
+$("poseresetall").onclick = () => {
+  if (!model) return;
+  model.traverse(o => { if (o.isBone && o.userData.restQ) { o.quaternion.copy(o.userData.restQ); if (o.userData.restP) o.position.copy(o.userData.restP); } });
+  model.updateMatrixWorld(true);
+  for (const t of ikTargets) t.bones[2].getWorldPosition(t.handle.position);
+};
+
+// ---- small conveniences: keyboard shortcuts, framing, double-click pivot, full build notes
+function frameModel(smooth) {
+  if (!model) return;
+  const box = new THREE.Box3().setFromObject(model);
+  if (box.isEmpty()) return;
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const h = Math.max(size.y, size.x * 0.6, 0.3);
+  const dist = h / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.25;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (!isFinite(dir.x) || dir.lengthSq() < 0.5) dir.set(0, 0.1, 1).normalize();
+  controls.target.copy(c);
+  camera.position.copy(c).addScaledVector(dir, dist);
+  controls.update();
+}
+let lastHeight = null;
+function autoFrame() {                     // a much smaller/bigger body (child, imp, archdevil): re-frame it
+  if (!model) return;
+  const h = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3()).y;
+  if (lastHeight && Math.abs(h - lastHeight) / lastHeight > 0.25) frameModel();
+  lastHeight = h;
+}
+renderer.domElement.addEventListener("dblclick", e => {
+  if (poseMode || !model) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(model, true).find(h => h.object.visible);
+  if (hit) { const d = hit.point.clone().sub(controls.target); controls.target.add(d); camera.position.add(d); controls.update(); }
+});
+const SHORTCUTS = [["Space", "Play / pause"], ["P", "Pose mode"], ["E / W / Q", "Pose: rotate / move / both"],
+  ["R", "Pose: reset the selected joint"], ["U", "Pose: unpin a hand or foot"], ["F", "Frame the character"],
+  ["Double-click", "Orbit around that point"], ["⌘/Ctrl S", "Save the character"], ["⌘/Ctrl Z / ⇧⌘Z", "Undo / redo"],
+  ["Esc", "Close menus, leave pose mode"], ["?", "This list"]];
+function showShortcuts() {
+  let el = $("shortcuts");
+  if (!el) {
+    el = document.createElement("div"); el.id = "shortcuts"; el.className = "dropdown";
+    el.style.cssText = "display:none;width:340px;left:50%;top:80px;transform:translateX(-50%)";
+    el.innerHTML = '<div class="msg" style="display:flex;justify-content:space-between">Keyboard shortcuts<a style="cursor:pointer" id="shortcutsx">✕</a></div>' +
+      SHORTCUTS.map(([k, v]) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 4px"><b>${k}</b><span>${v}</span></div>`).join("");
+    document.body.appendChild(el);
+    $("shortcutsx").onclick = () => el.style.display = "none";
+    document.addEventListener("keydown", e => { if (e.key === "Escape") el.style.display = "none"; });
+  }
+  el.style.display = el.style.display === "none" ? "flex" : "none";
+}
+document.addEventListener("keydown", e => {
+  if (/input|select|textarea/i.test(e.target.tagName)) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); $("charsave").click(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === " ") { e.preventDefault(); $("anim").checked = !$("anim").checked; $("anim").dispatchEvent(new Event("change")); }
+  else if (e.key === "p" || e.key === "P") setPoseMode(!poseMode);
+  else if (e.key === "f" || e.key === "F") frameModel();
+  else if (e.key === "?") showShortcuts();
+});
+$("warn").style.cursor = "pointer";
+$("warn").title = "Click for all build notes";
+$("warn").onclick = () => {
+  const w = $("warn"), all = w.dataset.all ? JSON.parse(w.dataset.all) : [];
+  if (!all.length) return;
+  w.dataset.open = w.dataset.open === "1" ? "0" : "1";
+  w.style.maxHeight = w.dataset.open === "1" ? "60vh" : ""; w.style.overflowY = "auto";
+  w.innerHTML = w.dataset.open === "1" ? all.map(x => "• " + x.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join("<br>")
+                                        : all.length + " note(s): " + all.slice(0, 3).join(" | ") + " (click for all)";
+};
+
+// ---- reference image (an in-game screenshot) over or beside the viewport, for matching the look
+let refUrl = null;
+function layoutRef() {
+  const img = $("refimg"), mode = $("refmode").value, c = $("view").getBoundingClientRect();
+  if (!refUrl || mode === "off") { img.style.display = "none"; return; }
+  const par = img.offsetParent ? img.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+  img.style.display = "block"; img.src = refUrl;
+  img.style.opacity = mode === "side" ? 1 : $("refop").value;
+  const w = mode === "side" ? c.width * 0.42 : c.width;
+  img.style.left = (c.left - par.left + (mode === "side" ? c.width - w : 0)) + "px";
+  img.style.top = (c.top - par.top) + "px"; img.style.width = w + "px"; img.style.height = c.height + "px";
+  img.style.background = mode === "side" ? "#000" : "transparent";
+}
+$("reffile").onchange = () => { const f = $("reffile").files[0]; if (!f) return;
+  if (refUrl) URL.revokeObjectURL(refUrl); refUrl = URL.createObjectURL(f);
+  if ($("refmode").value === "off") $("refmode").value = "side"; layoutRef(); };
+$("refmode").onchange = layoutRef; $("refop").oninput = layoutRef; addEventListener("resize", layoutRef);
+$("anim").addEventListener("change", () => { if (!$("anim").checked) settleCloth(); });
+$("fire").onchange = () => fireShells.forEach(s => s.visible = $("fire").checked);
+const _ax = new THREE.Vector3(), _pq = new THREE.Quaternion(), _mq = new THREE.Quaternion(), _wq = new THREE.Quaternion();
+function flapWings(t) {
+  // slow idle beat: the wing roots rise and fall about the body's forward axis, outer bones follow late
+  model.getWorldQuaternion(_mq);
+  for (const [b, rest, d, side] of wingBones) {
+    b.parent.getWorldQuaternion(_pq).invert();
+    _ax.set(0, 0, 1).applyQuaternion(_mq).applyQuaternion(_pq).normalize();
+    const a = side * (d === 0 ? 0.13 : 0.05) * Math.sin(t * 1.5 - d * 0.6);
+    b.quaternion.copy(_wq.setFromAxisAngle(_ax, a)).multiply(rest);
+  }
+}
+const _e = new THREE.Euler(), _q = new THREE.Quaternion();
+function swayTail(t) {
+  for (const [i, b, rest] of tailBones) {
+    const k = i + 1;
+    _e.set(0.05 * Math.sin(t * 1.1 - k * 0.45), 0.11 * Math.sin(t * 1.4 - k * 0.55), 0.07 * Math.sin(t * 0.8 - k * 0.6));
+    b.quaternion.copy(rest).multiply(_q.setFromEuler(_e));
+  }
+}
+(function loop() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (mixer && $("anim").checked) mixer.update(dt);
+  if (tailBones.length) { if ($("anim").checked) swayTail(clock.elapsedTime); else for (const [, b, rest] of tailBones) b.quaternion.copy(rest); }
+  if (heatMats.length || fireShells.length) heat(clock.elapsedTime);
+  if (clothChains.length && $("anim").checked) simCloth(dt);    // paused: the cloth stays settled (see settleCloth)
+  if (chestBones.length) { if ($("anim").checked && mixer) jiggleChest(dt); else for (const c of chestBones) { c.bone.position.copy(c.rest); c.p = null; } }
+  if (wingBones.length) { if ($("anim").checked) flapWings(clock.elapsedTime); else for (const [b, rest] of wingBones) b.quaternion.copy(rest); }
+  if (turntable) turntable(dt);
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop);
+})();
+
+// ---- animation picker (every animation the game has for this rig)
+let animPath = store.get("bga.anim") || "", animSkeleton = null, animList = [];
+// ---- clip list for multi-animation export
+let clips = store.get("bga.clips") || [];
+function drawClips() {
+  const l = $("cliplist"); l.innerHTML = "";
+  clips.forEach((c, i) => {
+    const b = document.createElement("span"); b.className = "chip on"; b.style.cssText = "display:inline-flex;gap:6px;align-items:center;padding:3px 8px";
+    b.textContent = c.name; const x = document.createElement("a"); x.textContent = "✕"; x.style.cursor = "pointer";
+    x.onclick = () => { clips.splice(i, 1); store.set("bga.clips", clips); drawClips(); }; b.appendChild(x); l.appendChild(b);
+  });
+}
+$("clipadd").onclick = () => {
+  const a = animList.find(x => x.path === animPath);
+  const c = { path: animPath, name: a ? a.name : "Default idle" };
+  if (!clips.find(x => x.path === c.path)) clips.push(c);
+  store.set("bga.clips", clips); drawClips(); $("exanim").checked = true;
+};
+$("clipclear").onclick = () => { clips = []; store.set("bga.clips", clips); drawClips(); };
+drawClips();
+async function loadAnimList(skeleton) {
+  animSkeleton = skeleton;
+  let list = [];
+  try { list = (await (await fetch("/api/animations?skeleton=" + encodeURIComponent(skeleton))).json()).animations || []; } catch (e) {}
+  animList = list;
+  if (animPath && !list.find(a => a.path === animPath)) { animPath = ""; store.set("bga.anim", ""); }
+  const box = $("animpick"); box.innerHTML = "";
+  const c = optCombo("Animation", list.map(a => ({ uuid: a.path, name: a.name, sub: a.sub, group: a.group })),
+    () => animPath, p => { animPath = p || ""; store.set("bga.anim", animPath); $("anim").checked = true; schedule(0); },
+    { none: "Default idle", noun: "animations", iconless: true });
+  c.style.padding = "3px 8px"; c.style.borderRadius = "999px"; c.style.background = "#000a";
+  box.appendChild(c);
+}
+let facePath = store.get("bga.face") || "", faceHead = null;
+async function loadFaceList(head, skeleton) {
+  faceHead = head;
+  let poses = [];
+  try { poses = (await (await fetch("/api/face_poses?head=" + encodeURIComponent(head) + "&skeleton=" + encodeURIComponent(skeleton || ""))).json()).poses || []; } catch (e) {}
+  if (facePath && !poses.find(p => p.path === facePath)) { facePath = ""; store.set("bga.face", ""); }
+  const box = $("facepick"); box.innerHTML = "";
+  if (!poses.length) return;
+  const c = optCombo("Expression", poses.map(p => ({ uuid: p.path, name: p.name, group: p.group })),
+    () => facePath, p => { facePath = p || ""; store.set("bga.face", facePath); schedule(0); },
+    { none: "Neutral face", noun: "expressions", iconless: true });
+  c.style.padding = "3px 8px"; c.style.borderRadius = "999px"; c.style.background = "#000a";
+  box.appendChild(c);
+}
+function exportMotion() {
+  const action = mixer && mixer._actions && mixer._actions[0];
+  let pose_rot = null;
+  if ($("expose").value === "frame" && model) {          // exactly what the viewport shows: animation frame or hand pose
+    if ($("anim").checked) settleCloth();                 // cloth hangs in the exported pose, not mid-swing
+    pose_rot = {};
+    model.traverse(o => { if (o.isBone) pose_rot[o.name] = o.quaternion.toArray(); });
+  }
+  return { anim: animPath || null, include: $("exanim").checked, face: facePath || null,
+           clips: clips.length ? clips.map(c => c.path || null) : null,
+           pose_time: $("expose").value === "frame" && action ? action.time : null, pose_rot, world_axes: $("exaxes").checked };
+}
+
+// ---- portrait PNG / turntable video, saved to the exports folder by the app
+async function saveRender(blob, ext) {
+  const r = await fetch("/api/save_render?ext=" + ext + "&name=" + encodeURIComponent($("exname").value || "character"),
+                        { method: "POST", body: blob });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error); return j.path;
+}
+function captureBackground(forVideo) {
+  const mode = $("capbg").value;
+  if (mode === "viewer" || (forVideo && mode === "transparent")) return undefined;      // leave as is
+  if (mode === "transparent") return null;
+  if (mode === "astral") return astralSky();
+  if (mode === "solid") return new THREE.Color($("capc1").value);
+  const c = document.createElement("canvas"); c.width = 4; c.height = 512; const g = c.getContext("2d");
+  const gr = g.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, $("capc2").value); gr.addColorStop(1, $("capc1").value);
+  g.fillStyle = gr; g.fillRect(0, 0, 4, 512); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function withCapture(forVideo, fn) {
+  const bg = scene.background, fv = floor.visible, bv = backdrop ? backdrop.visible : false, fog = scene.fog;
+  const nb = captureBackground(forVideo);
+  if (nb !== undefined) { scene.background = nb; if (backdrop) backdrop.visible = false; scene.fog = null; }
+  floor.visible = $("capfloor").checked && (nb !== null);
+  const restore = () => { scene.background = bg; floor.visible = fv; if (backdrop) backdrop.visible = bv; scene.fog = fog; };
+  return Promise.resolve().then(() => fn()).finally(restore);
+}
+// Toolbar popovers: open just under their button (the toolbar wraps, so a fixed spot can land on top of
+// it), close on the button again, the ✕, Esc, or a click anywhere outside.
+const popovers = [];
+function popover(btnId, panelId, onOpen) {
+  const btn = $(btnId), p = $(panelId);
+  const close = () => { p.style.display = "none"; };
+  const open = () => {
+    popovers.forEach(q => q !== p && (q.style.display = "none"));
+    if (onOpen) onOpen();
+    p.style.display = "flex";
+    const r = btn.getBoundingClientRect(), w = p.offsetWidth;
+    p.style.top = Math.round(r.bottom + 6) + "px";
+    p.style.left = Math.round(Math.max(8, Math.min(r.right - w, innerWidth - w - 8))) + "px";
+    p.style.right = "auto";
+    p.style.maxHeight = Math.max(200, innerHeight - r.bottom - 20) + "px";
+    p.style.overflowY = "auto";
+  };
+  btn.onclick = e => { e.stopPropagation(); p.style.display === "none" ? open() : close(); };
+  p.querySelectorAll(".pclose").forEach(b => b.onclick = close);
+  p.closePanel = close;
+  popovers.push(p);
+}
+document.addEventListener("mousedown", e => popovers.forEach(p => {
+  if (p.style.display !== "none" && !p.contains(e.target) && !e.target.closest("#capbtn,#recentbtn")) p.style.display = "none";
+}));
+document.addEventListener("keydown", e => { if (e.key === "Escape") popovers.forEach(p => p.style.display = "none"); });
+addEventListener("resize", () => popovers.forEach(p => p.style.display = "none"));
+popover("capbtn", "cappanel");
+const capCols = () => { $("capcols").style.display = ["solid", "gradient"].includes($("capbg").value) ? "" : "none"; };
+$("capbg").onchange = capCols; capCols();
+$("shotbtn").onclick = async () => {
+  try {
+    const scale = +$("capscale").value, r = canvas.parentElement.getBoundingClientRect(), pr = renderer.getPixelRatio();
+    const blob = await withCapture(false, () => {
+      renderer.setPixelRatio(pr * scale); renderer.setSize(r.width, r.height, false); renderer.render(scene, camera);
+      return new Promise(res => canvas.toBlob(b => { renderer.setPixelRatio(pr); renderer.setSize(r.width, r.height, false); res(b); }, "image/png"));
+    });
+    setStatus("", "Saved " + await saveRender(blob, "png"));
+  } catch (e) { setStatus("", "⚠ " + e.message); }
+};
+$("spinbtn").onclick = async () => {
+  if (turntable) return;
+  const types = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm", "video/mp4"];
+  const mime = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if (!mime) { setStatus("", "⚠ This window can't record video"); return; }
+  const rec = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 12e6 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+  const off = camera.position.clone().sub(controls.target), start = Math.atan2(off.x, off.z), rad = Math.hypot(off.x, off.z);
+  let t = 0; const dur = +$("caplen").value; controls.enabled = false;
+  const bg0 = scene.background, fv0 = floor.visible, fog0 = scene.fog, nb = captureBackground(true);
+  if (nb !== undefined) { scene.background = nb; scene.fog = null; } floor.visible = $("capfloor").checked;
+  setStatus("busy", "Recording turntable…");
+  turntable = dt => {
+    t += dt; const a = start + Math.min(1, t / dur) * Math.PI * 2;
+    camera.position.set(controls.target.x + Math.sin(a) * rad, camera.position.y, controls.target.z + Math.cos(a) * rad);
+    if (t >= dur && rec.state === "recording") rec.stop();
+  };
+  rec.start(250); await done;
+  turntable = null; controls.enabled = true;
+  scene.background = bg0; floor.visible = fv0; scene.fog = fog0;
+  try { setStatus("", "Saved " + await saveRender(new Blob(chunks, { type: mime }), mime.includes("mp4") ? "mp4" : "webm")); }
+  catch (e) { setStatus("", "⚠ " + e.message); }
+};
+
+// skin: wrapped diffuse with a warm scatter tint (cheap subsurface look) + soft red sheen at grazing angles
+const SSS_PATCH = THREE.ShaderChunk.lights_physical_pars_fragment
+  .replace("vec3 irradiance = dotNL * directLight.color;",
+    `vec3 irradiance = dotNL * directLight.color;
+     float wrapNL = saturate( ( dot( geometryNormal, directLight.direction ) + 0.45 ) / 1.45 );
+     vec3 sssIrr = max( wrapNL - dotNL, 0.0 ) * directLight.color * vec3( 0.95, 0.38, 0.26 ) * 0.9;`)
+  .replace("reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );",
+    "reflectedLight.directDiffuse += ( irradiance + sssIrr ) * BRDF_Lambert( material.diffuseColor );");
+function upgradeMaterial(o) {
+  const m = o.material; if (!m) return;
+  const shader = (m.userData && m.userData.bg3_shader) || "";
+  // keep the exporter's per-material doubleSided flag: cloth is two one-sided sheets that z-fight otherwise
+  o.castShadow = true; o.receiveShadow = true;
+  if (m.alphaTest > 0) { m.alphaToCoverage = true; m.alphaTest = 0.35; }
+  if (m.transparent) { m.depthWrite = false; o.renderOrder = 1; o.castShadow = false; }
+  if (/Skin/i.test(shader)) {
+    const p = new THREE.MeshPhysicalMaterial();
+    THREE.MeshStandardMaterial.prototype.copy.call(p, m); p.defines = { STANDARD: '', PHYSICAL: '' };
+    p.sheen = 0.35; p.sheenColor = new THREE.Color(0.55, 0.22, 0.16); p.sheenRoughness = 0.65;
+    p.specularIntensity = 0.7;
+    p.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <lights_physical_pars_fragment>", SSS_PATCH); };
+    p.userData = m.userData; o.material = p; m.dispose();
+  } else if (/Eye/i.test(shader)) {
+    const p = new THREE.MeshPhysicalMaterial();
+    THREE.MeshStandardMaterial.prototype.copy.call(p, m); p.defines = { STANDARD: '', PHYSICAL: '' };
+    p.clearcoat = 1.0; p.clearcoatRoughness = 0.04; p.roughness = Math.max(p.roughness, 0.35);
+    p.userData = m.userData;
+    p.userData = m.userData; o.material = p; m.dispose(); o.castShadow = false;
+  } else if (/Hair|Scalp/i.test(shader)) {
+    const p = new THREE.MeshPhysicalMaterial();
+    THREE.MeshStandardMaterial.prototype.copy.call(p, m); p.defines = { STANDARD: '', PHYSICAL: '' };
+    p.sheen = 0.6; p.sheenRoughness = 0.35; p.sheenColor = new THREE.Color(0.9, 0.85, 0.8);
+    p.anisotropy = 0.6;
+    p.userData = m.userData; o.material = p; m.dispose();
+  }
+}
+
+// ------------------------------------------------------------------ state
+let races = [], menu = null, building = false, pending = false, timer = null;
+const sel = { race: null, subrace: null, body_type: 1, body_shape: 0, slots: {}, piercings: [], colors: {},
+              materials: {}, intensity: { Tattoo: 1, Makeup: 0.8, LipsMakeup: 0, HairHighlight: 0.25, HairGraying: 0 },
+              equipment: {}, dyes: {}, toggles: { tail: true, nipple_covers: true, modesty_leaf: true, ceremorphosis: false } };
+const OPTIONAL = new Set(["Beard", "Horns", "Wings", "Outfit", "Tail", "Private Parts", "DragonbornTop", "DragonbornJaw", "DragonbornChin"]);
+const COLOR_LABELS = { SkinColors: "Skin", EyeColors: "Eyes", HairColors: "Hair", HairHighlightColors: "Highlights",
+  HairGrayingColors: "Greying", MakeupColors: "Makeup", LipsMakeupColors: "Lips", TattooColors: "Tattoo",
+  HornColors: "Horns", HornTipColors: "Horn tips", ScleraColors: "Sclera", EyeColors: "Eyes", EyeColorsL: "Left eye", ScleraColorsL: "Left sclera" };
+
+function hexOf(c) {
+  if (!c) return "#444";
+  let h = c.replace("#", ""); if (h.length === 8) h = h.slice(2);
+  return "#" + h;
+}
+function option(sel_, value, text, selected) {
+  const o = document.createElement("option"); o.value = value ?? ""; o.textContent = text;
+  if (selected) o.selected = true; sel_.appendChild(o);
+}
+// options from mods go into their own "MODS · <mod>" groups after the game's own entries
+function fillOptions(sel_, opts, text, value) {
+  const groups = {};
+  opts.forEach(o => { const k = o.group || (o.mod ? "MODS · " + o.mod : null);
+    if (k) (groups[k] = groups[k] || []).push(o); else option(sel_, value(o), text(o)); });
+  for (const [label, list] of Object.entries(groups)) {
+    const g = document.createElement("optgroup"); g.label = label;
+    list.forEach(o => { const e = document.createElement("option"); e.value = value(o); e.textContent = text(o); g.appendChild(e); });
+    sel_.appendChild(g);
+  }
+}
+function field(label, el) {
+  const l = document.createElement("label"); l.className = "f"; l.append(label, el); return l;
+}
+
+// ------------------------------------------------------------------ build menus
+async function loadRaces() {
+  const r = await (await fetch("/api/races")).json();
+  races = r.races;
+  $("fbxbtn").disabled = !r.blender; if (!r.blender) $("fbxbtn").title = "Install Blender to export FBX";
+  $("exmsg").textContent = "Exports go to " + r.export_dir +
+    (r.mods && r.mods.length ? "  ·  Mods loaded: " + r.mods.join(", ") : "  ·  No mods found" + (r.mod_dirs && r.mod_dirs.length ? "" : " (no Mods folder)"));
+  const saved = store.get("bga.sel");
+  const raceSel = $("race"); raceSel.innerHTML = "";
+  races.forEach(rc => option(raceSel, rc.uuid, rc.name));
+  if (saved && races.find(r => r.uuid === saved.race)) Object.assign(sel, saved);
+  else sel.race = (races.find(r => r.name === "Tiefling") || races[0]).uuid;
+  raceSel.value = sel.race;
+  raceSel.onchange = () => { sel.race = raceSel.value; sel.subrace = null; resetLooks(); renderRace(); };
+  renderRace(!!saved);
+}
+function resetLooks() { sel.slots = {}; sel.colors = {}; sel.materials = {}; sel.piercings = []; delete sel.origin_cv; leaveCreature(); }
+function leaveCreature() { delete sel.creature_cv; delete sel.creature_outfit; }
+
+function renderRace(keep) {
+  const rc = races.find(r => r.uuid === sel.race);
+  const sub = $("subrace"); sub.innerHTML = "";
+  if (!rc.subraces.length) { option(sub, "", "—"); sub.disabled = true; sel.subrace = null; }
+  else { sub.disabled = false; rc.subraces.forEach(s => option(sub, s.uuid, s.name));
+         if (!rc.subraces.find(s => s.uuid === sel.subrace)) sel.subrace = rc.subraces[0].uuid; sub.value = sel.subrace; }
+  sub.onchange = () => { sel.subrace = sub.value; sel.colors = {}; delete sel.origin_cv; leaveCreature(); loadMenu(); };
+  const bodies = $("bodies"); bodies.innerHTML = "";
+  const avail = rc.bodies.map(b => b.body_type + ":" + b.body_shape);
+  if (!avail.includes(sel.body_type + ":" + sel.body_shape)) [sel.body_type, sel.body_shape] = avail[0].split(":").map(Number);
+  if (sel.child && !rc.child) sel.child = false;
+  [[1, 0], [0, 0], [1, 1], [0, 1]].forEach(([bt, bs], i) => {
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = "Body " + (i + 1);
+    b.disabled = !avail.includes(bt + ":" + bs);
+    if (!sel.child && !sel.creature_cv && bt === sel.body_type && bs === sel.body_shape) b.classList.add("on");
+    b.onclick = (ev) => { ev.preventDefault(); const was = !!sel.child || !!sel.creature_cv; sel.child = false; sel.body_type = bt; sel.body_shape = bs; delete sel.origin_cv;
+      if (was) resetLooks(); renderRace(true); };
+    bodies.appendChild(b);
+  });
+  if (rc.child) {                       // the game's own child body (its own heads, hair and outfits)
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = "Child";
+    if (sel.child) b.classList.add("on");
+    b.onclick = (ev) => { ev.preventDefault(); if (!sel.child) { sel.child = true; delete sel.origin_cv; resetLooks(); sel.equipment = {}; }
+      renderRace(true); };
+    bodies.appendChild(b);
+  }
+  loadMenu(keep);
+}
+
+async function loadMenu(keep) {
+  setStatus("busy", "Loading options…");
+  const q = new URLSearchParams({ race: sel.race, subrace: sel.subrace || "", bt: sel.body_type, bs: sel.body_shape, child: sel.child ? "1" : "0", creature: sel.creature_cv ? "1" : "0" });
+  menu = await (await fetch("/api/menu?" + q)).json();
+  renderAppearance(keep); renderColors(keep); renderMarkings(); renderWeathering(); renderPiercings(); renderEquipment(keep);
+  schedule(0);
+}
+
+function renderAppearance(keep) {
+  const box = $("appearance"); box.innerHTML = "";
+  if (sel.creature_cv) {
+    const n = document.createElement("div"); n.className = "msg";
+    n.textContent = "Built from the game's own creature definition (its own skeleton, body and outfit). Colours and markings still apply; pick a Body to go back to the creator.";
+    box.appendChild(n);
+  }
+  for (let [slot, opts] of Object.entries(menu.slots)) {
+    if (slot === "Piercing" || !opts.length) continue;
+    let cur = sel.slots[slot];
+    // a loaded origin character's own part that the creator doesn't list (Gale's beard, the Urge's jaw)
+    if (typeof cur === "string" && cur.startsWith("origin:") && !opts.find(o => o.uuid === cur))
+      opts = [{ uuid: cur, name: "Their own", source: "origin", group: "ORIGINS", visual: cur.slice(7), internal: "" }, ...opts];
+    if (cur === undefined || !(cur === null || opts.find(o => o.uuid === cur))) {
+      // races without their own options for a slot (e.g. horns on a human) start with none
+      cur = sel.child ? (slot === "Horns" ? null : opts[0].uuid)
+          : slot === "Private Parts" || opts.every(o => o.source === "origin") ? null : opts[0].uuid;
+      sel.slots[slot] = cur;
+    }
+    const iconless = slot === "Private Parts";
+    // extra (origin / unique / NPC) options made for the current body type list first within their group
+    const bodyTag = { "1,0": "Body 1", "0,0": "Body 2", "1,1": "Body 3", "0,1": "Body 4" }[sel.body_type + "," + sel.body_shape];
+    const rank = o => o.source !== "origin" ? 0 : o.name.endsWith(bodyTag) ? 1 : /cambion/.test(o.name) ? 2 : 3;
+    opts = opts.map((o, i) => [o, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
+    const c = optCombo(slot, opts.map(o => ({ uuid: o.uuid, name: o.name, mod: o.mod, group: o.group,
+        sub: o.source === "origin" ? (o.internal || "") : "",
+        icon: iconless ? null : o.portrait ? iconUrl("portrait:" + o.portrait)
+              : o.source === "origin" ? iconUrl("mesh:" + o.visual) : ccIcon(slot, o.visual) })),
+      () => sel.slots[slot] || "", uuid => { sel.slots[slot] = uuid || null;
+        const sz = $("size_" + slot); if (sz) sz.style.display = uuid ? "flex" : "none";
+        const om = $("tg_origin_markings");
+        if (slot === "Head" && om) om.style.display = String(uuid || "").startsWith("origin:") ? "" : "none";
+        schedule(); },
+      { none: (OPTIONAL.has(slot) || slot === "Hair") ? "None" : null, noun: slot.toLowerCase().replace("dragonborn", "") + " options", iconless });
+    box.appendChild(field(slot.replace("Dragonborn", "Dragonborn "), c));
+    if (slot === "Horns" || slot === "Wings") {
+      sel.part_scale = sel.part_scale || {};
+      const row = document.createElement("label"); row.id = "size_" + slot;
+      row.style.cssText = "display:flex;gap:8px;align-items:center;font-size:12px;margin:-2px 0 6px";
+      row.style.display = sel.slots[slot] ? "flex" : "none";
+      const r = document.createElement("input"); r.type = "range"; r.min = 0.5; r.max = 1.6; r.step = 0.05; r.style.flex = "1";
+      r.value = sel.part_scale[slot] || 1;
+      const v = document.createElement("span"); v.style.minWidth = "38px"; v.style.textAlign = "right";
+      const show = () => v.textContent = Math.round(r.value * 100) + "%";
+      r.oninput = show; r.onchange = () => { sel.part_scale[slot] = +r.value; schedule(); };
+      r.ondblclick = () => { r.value = 1; show(); r.onchange(); };
+      show(); row.append(slot + " size", r, v); row.title = "Double-click to reset"; box.appendChild(row);
+    }
+  }
+  sel.toggles = Object.assign({ tail: true, nipple_covers: true, modesty_leaf: true, ceremorphosis: false }, sel.toggles || {});
+  const tg = document.createElement("div"); tg.className = "pierce"; tg.style.maxHeight = "none";
+  const race = (races.find(r => r.uuid === sel.race) || {}).name || "";
+  for (const [k, label] of [["tail", "Tail"], ["nipple_covers", "Breast covers"], ["modesty_leaf", "Modesty leaf"],
+                            ["ceremorphosis", "Ceremorphosis (half-illithid)"], ["glowing_iris", "Glowing irises"],
+                            ["heterochromia", "Heterochromia (left eye colour)"], ["origin_markings", "Origin head's own markings"],
+                            ["chest_physics", "Chest physics bones (jiggle in animation)"],
+                            ["cloth_physics", "Cloth physics bones (capes, tabards, skirts)"]]) {
+    if (k === "cloth_physics" && sel.toggles.cloth_physics === undefined) sel.toggles.cloth_physics = true;
+    if (k === "chest_physics" && sel.toggles.chest_physics === undefined) sel.toggles.chest_physics = sel.body_type === 1;
+    if (k === "tail" && !/tiefling/i.test(race)) continue;
+    const l = document.createElement("label"); l.id = "tg_" + k;
+    if (k === "origin_markings") l.style.display = String((sel.slots || {}).Head || "").startsWith("origin:") ? "" : "none"; const c = document.createElement("input"); c.type = "checkbox";
+    c.checked = !!sel.toggles[k];
+    c.onchange = () => { sel.toggles[k] = c.checked; if (k === "heterochromia") renderColors(); schedule(); };
+    l.append(c, label); tg.appendChild(l);
+  }
+  const es = optCombo("Eye shape", (menu.eye_shapes || []).map(x => ({ uuid: x.key, name: x.name, icon: x.icon ? iconUrl(x.icon) : null })),
+    () => sel.eye_shape || "", k => { sel.eye_shape = k || null; schedule(); }, { none: "Head default", noun: "eye shapes" });
+  box.appendChild(field("Eye shape", es));
+  box.appendChild(tg);
+}
+
+function hexToHsl(hex) {
+  const h = hexOf(hex).slice(1); const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let hh = 0, ss = 0;
+  if (mx !== mn) { const d = mx - mn; ss = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    hh = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh *= 60; }
+  return [Math.round(hh), Math.round(ss * 100), Math.round(l * 100)];
+}
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100; const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))).toString(16).padStart(2, "0");
+  return "#" + f(0) + f(8) + f(4);
+}
+function renderColors(keep) {
+  const box = $("colors"); box.innerHTML = "";
+  sel.custom_colors = sel.custom_colors || {};
+  const ORDER = ["SkinColors", "EyeColors", "EyeColorsL", "ScleraColors", "ScleraColorsL", "HairColors"];
+  const cats = Object.entries(menu.colors).sort((a, b) => ((ORDER.indexOf(a[0]) + 100) % 100) - ((ORDER.indexOf(b[0]) + 100) % 100));
+  for (const [cat, list] of cats) {
+    if (!list.length) continue;
+    if ((cat === "EyeColorsL" || cat === "ScleraColorsL") && !(sel.toggles || {}).heterochromia) continue;
+    // a loaded origin character keeps its own colours until a swatch is picked
+    if (sel.origin_cv && (sel.colors[cat] === undefined || sel.colors[cat] === "origin")) sel.colors[cat] = "origin";
+    else if (!list.find(c => c.uuid === sel.colors[cat])) sel.colors[cat] = list[cat.startsWith("ScleraColors") ? 0 : Math.min(3, list.length - 1)].uuid;
+    const wrap = document.createElement("div"); wrap.className = "f";
+    const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;align-items:center";
+    const title = document.createElement("span"); title.textContent = COLOR_LABELS[cat] || cat;
+    const name = document.createElement("span"); name.className = "swname";
+    const grid = document.createElement("div"); grid.className = "sw";
+    // custom colour controls
+    const cust = document.createElement("div"); cust.style.cssText = "display:none;gap:6px;grid-template-columns:auto 1fr;align-items:center";
+    const picker = document.createElement("input"); picker.type = "color";
+    picker.style.cssText = "width:34px;height:26px;border:1px solid var(--line);border-radius:6px;background:none;padding:0";
+    const sliders = document.createElement("div"); sliders.style.cssText = "display:grid;gap:2px";
+    const mk = (label, max) => { const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = max; r.step = 1;
+      const row = document.createElement("div"); row.style.cssText = "display:grid;grid-template-columns:22px 1fr;align-items:center;gap:6px;font-size:10px";
+      row.append(label, r); sliders.appendChild(row); return r; };
+    const H = mk("H", 360), S = mk("S", 100), L = mk("L", 100);
+    H.style.background = "linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)"; H.style.height = "6px"; H.style.borderRadius = "3px";
+    cust.append(picker, sliders);
+    const custBtn = document.createElement("button"); custBtn.className = "chip"; custBtn.textContent = "Custom"; custBtn.style.padding = "3px 8px";
+    const setCustom = (hex, fromSliders) => {
+      sel.custom_colors[cat] = hex; picker.value = hex; name.textContent = "Custom " + hex.toUpperCase();
+      if (!fromSliders) { const [h, s_, l] = hexToHsl(hex); H.value = h; S.value = s_; L.value = l; }
+      grid.querySelectorAll(".on").forEach(x => x.classList.remove("on")); custBtn.classList.add("on"); cust.style.display = "grid";
+      schedule(400);
+    };
+    const current = () => hexOf((list.find(c => c.uuid === sel.colors[cat]) || list[0]).ui);
+    custBtn.onclick = (ev) => { ev.preventDefault(); if (sel.custom_colors[cat]) { delete sel.custom_colors[cat]; renderColors(); schedule(); } else setCustom(current()); };
+    picker.oninput = () => setCustom(picker.value);
+    [H, S, L].forEach(r => r.oninput = () => setCustom(hslToHex(+H.value, +S.value, +L.value), true));
+    let modMark = false;
+    [...list.filter(c => !c.mod), ...list.filter(c => c.mod)].forEach(c => {
+      if (c.mod && !modMark) { modMark = true; const t = document.createElement("span"); t.textContent = "MODS";
+        t.style.cssText = "grid-column:1/-1;font-size:9px;letter-spacing:.12em;color:var(--gold);margin-top:4px"; grid.appendChild(t); }
+      const b = document.createElement("button"); b.style.background = hexOf(c.ui); b.title = c.name + (c.mod ? "  (" + c.mod + ")" : "");
+      if (c.uuid === sel.colors[cat] && !sel.custom_colors[cat]) { b.classList.add("on"); name.textContent = c.name; }
+      b.onclick = (ev) => { ev.preventDefault(); sel.colors[cat] = c.uuid; delete sel.custom_colors[cat];
+        grid.querySelectorAll(".on").forEach(x => x.classList.remove("on")); custBtn.classList.remove("on"); cust.style.display = "none";
+        b.classList.add("on"); name.textContent = c.name; schedule(); };
+      grid.appendChild(b);
+    });
+    head.append(title, custBtn);
+    wrap.append(head, name, grid, cust); box.appendChild(wrap);
+    if (sel.custom_colors[cat]) { const hx = sel.custom_colors[cat]; setCustom(hx); }
+  }
+}
+
+function renderMarkings() {
+  const box = $("markings"); box.innerHTML = "";
+  const kinds = { Tattoo: "Tattoo", Makeup: "Makeup", Scar: "Scar", Passive: "Dragonborn scales" };
+  for (const [kind, label] of Object.entries(kinds)) {
+    const opts = menu.materials[kind] || []; if (!opts.length) continue;
+    if (!opts.find(o => o.uuid === sel.materials[kind])) sel.materials[kind] = opts[0].uuid;
+    const s = optCombo(label, opts.map(o => ({ uuid: o.uuid, name: o.name, mod: o.mod, icon: ccIcon(kind, o.preset) })),
+      () => sel.materials[kind], u => { sel.materials[kind] = u; schedule(); }, { noun: label.toLowerCase() + " options" });
+    box.appendChild(field(label, s));
+  }
+  for (const [k, label] of [["Tattoo", "Tattoo intensity"], ["Makeup", "Makeup intensity"], ["LipsMakeup", "Lipstick"],
+                            ["HairHighlight", "Hair highlights"], ["HairGraying", "Hair greying"]]) {
+    const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 1; r.step = 0.05; r.value = sel.intensity[k] ?? 0;
+    r.oninput = () => { sel.intensity[k] = +r.value; schedule(600); };
+    box.appendChild(field(label, r));
+  }
+}
+
+function renderWeathering() {
+  const box = $("weathering"); box.innerHTML = "";
+  sel.weathering = Object.assign({ Freckles: 0, Vitiligo: 0, Age: 0, BodyHair: 1, EyeVeins: 0.3, Dirt: 0, Blood: 0, Sweat: 0, Bruises: 0 },
+                                 sel.weathering || {});
+  for (const [k, label] of [["Freckles", "Freckles"], ["Vitiligo", "Vitiligo"], ["Age", "Age"], ["BodyHair", "Body hair"], ["EyeVeins", "Eye veins"],
+                            ["Dirt", "Dirt"], ["Blood", "Blood"], ["Sweat", "Sweat"], ["Bruises", "Bruises"]]) {
+    const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 1; r.step = 0.05; r.value = sel.weathering[k];
+    r.oninput = () => { sel.weathering[k] = +r.value; schedule(600); };
+    box.appendChild(field(label, r));
+  }
+}
+
+function renderPiercings() {
+  const box = $("piercings"); box.innerHTML = "";
+  const f = $("pfilter");
+  const draw = () => {
+    box.innerHTML = "";
+    (menu.slots.Piercing || []).filter(p => p.name.toLowerCase().includes(f.value.toLowerCase())).forEach(p => {
+      const l = document.createElement("label"); const c = document.createElement("input"); c.type = "checkbox";
+      c.checked = sel.piercings.includes(p.uuid);
+      c.onchange = () => { sel.piercings = c.checked ? [...sel.piercings, p.uuid] : sel.piercings.filter(x => x !== p.uuid); schedule(); };
+      l.append(c, (p.mod ? "[" + p.mod + "] " : "") + p.name + (p.bone ? "  · " + p.bone.replace("piercing_", "") : "")); box.appendChild(l);
+    });
+  };
+  f.oninput = draw; draw();
+}
+
+function renderEquipment(keep) {
+  const box = $("equipment"); box.innerHTML = "";
+  const er = document.createElement("div"); er.className = "msg"; er.textContent = "Fitting: " + (menu.equipment_race || "—");
+  box.appendChild(er);
+  sel.weapons = sel.weapons || "melee";
+  const wm = optCombo("Weapons", [{ uuid: "melee", name: "Melee weapons in hand", sub: "bow / crossbow on the back" },
+                                  { uuid: "ranged", name: "Ranged weapon in hand", sub: "melee weapons sheathed" },
+                                  { uuid: "sheathed", name: "All weapons sheathed", sub: "hips, back, shield mount" }],
+    () => sel.weapons, v => { sel.weapons = v || "melee"; schedule(); }, { iconless: true, noun: "options" });
+  box.appendChild(field("Weapons", wm));
+  for (const [slot, items] of Object.entries(menu.equipment)) {
+    if (!items.length) continue;
+    const wrap = document.createElement("div"); wrap.style.display = "grid"; wrap.style.gap = "4px";
+    if (sel.equipment[slot] && !items.find(i => i.uuid === sel.equipment[slot])) delete sel.equipment[slot];
+    const combo = optCombo(slot, items.map(i => ({ uuid: i.uuid, name: i.name, sub: i.internal, mod: i.mod, icon: i.icon ? iconUrl(i.icon) : null })),
+      () => sel.equipment[slot] || "", uuid => { if (uuid) sel.equipment[slot] = uuid; else delete sel.equipment[slot]; schedule(); },
+      { none: "None", noun: slot.toLowerCase() + " items" });
+    sel.dyes = sel.dyes || {};
+    if (sel.dyes[slot] && !(menu.dyes || []).find(x => x.uuid === sel.dyes[slot])) delete sel.dyes[slot];
+    const sw = document.createElement("div"); sw.style.cssText = "display:flex;gap:3px;height:10px";
+    const paint = () => { sw.innerHTML = ""; const x = (menu.dyes || []).find(x => x.uuid === sel.dyes[slot]);
+      (x ? x.swatch : []).forEach(c => { const b = document.createElement("span"); b.style.cssText = "flex:1;border-radius:3px;background:" + c; sw.appendChild(b); }); };
+    const d = optCombo(slot + " dye", (menu.dyes || []).map(x => ({ uuid: x.uuid, name: x.name, sub: x.internal, mod: x.mod, icon: x.icon ? iconUrl(x.icon) : null })),
+      () => sel.dyes[slot] || "", uuid => { if (uuid) sel.dyes[slot] = uuid; else delete sel.dyes[slot]; paint(); schedule(); },
+      { none: "No dye (item colours)", noun: "dyes" });
+    paint();
+    wrap.append(combo, d, sw); box.appendChild(field(slot, wrap));
+  }
+}
+
+// ------------------------------------------------------------------ build + view
+// ---- undo / redo (snapshots of the whole selection)
+let hist = [], hpos = -1, histLock = false, histRefresh = false;
+function pushHist() {
+  if (histLock) return;
+  const snap = JSON.stringify(sel);
+  if (histRefresh) { histRefresh = false; hist[hpos] = snap; return; }   // menus re-rendering after undo/redo
+  if (hist[hpos] === snap) return;
+  hist = hist.slice(0, hpos + 1); hist.push(snap);
+  if (hist.length > 150) hist.shift();
+  hpos = hist.length - 1; updHist();
+}
+function updHist() { $("undobtn").disabled = hpos <= 0; $("redobtn").disabled = hpos >= hist.length - 1; }
+function goHist(d) {
+  const n = hpos + d; if (n < 0 || n >= hist.length) return;
+  hpos = n; histLock = true;
+  try { applySelection(JSON.parse(hist[hpos])); } finally { histLock = false; }
+  histRefresh = true; updHist(); schedule(0);
+}
+function schedule(delay = 250) {
+  store.set("bga.sel", sel);
+  pushHist();
+  if (!$("auto").checked && delay !== 0) return;
+  clearTimeout(timer); timer = setTimeout(build, delay);
+}
+function setStatus(kind, text) {
+  $("status").innerHTML = (kind === "busy" ? '<span class="spin"></span>' : "") + text;
+}
+async function build() {
+  if (building) { pending = true; return; }
+  building = true; setStatus("busy", "Assembling…");
+  try {
+    const res = await fetch("/api/build", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selection: sel, textures: $("tex").checked, max_tex: 1024, anim: animPath || null, face: facePath || null }) });
+    if (!res.ok) throw new Error((await res.json()).error);
+    const info = JSON.parse(res.headers.get("X-Build-Info") || "{}");
+    const buf = await res.arrayBuffer();
+    const gltf = await new GLTFLoader().parseAsync(buf, "");
+    if (model) { scene.remove(model); model.traverse(o => { o.geometry?.dispose(); }); }
+    model = gltf.scene;
+    model.traverse(o => { if (o.isMesh) { o.frustumCulled = false; upgradeMaterial(o); } });
+    scene.add(model);
+    applyFace(); findTail(); findCloth(); setupHeat(); autoFrame();
+    if (!$("anim").checked) setTimeout(settleCloth, 50); if (poseMode) setPoseMode(true);
+    if (mixer) mixer.stopAllAction();
+    mixer = null;
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      mixer.clipAction(gltf.animations[0]).setLoop(animPath ? THREE.LoopRepeat : THREE.LoopPingPong).play();
+    }
+    if (info.skeleton && info.skeleton !== animSkeleton) loadAnimList(info.skeleton);
+    setTimeout(addRecent, 400);
+    if ((info.head || "") !== faceHead) loadFaceList(info.head || "", info.skeleton);
+    $("loading").style.display = "none";
+    const tm = info.timing || {};
+    setStatus("", tm.cached ? `${info.parts?.length ?? 0} parts · reused (${tm.write}s)` :
+      `${info.parts?.length ?? 0} parts · ${(info.seconds + (tm.write || 0)).toFixed(1)}s` +
+      (tm.assemble !== undefined ? ` (recipe ${tm.recipe} · assemble ${tm.assemble} · textures ${tm.textures} · write ${tm.write})` : ""));
+    const w = $("warn"); const ws = info.warnings || [];
+    w.style.display = ws.length ? "block" : "none"; w.dataset.all = JSON.stringify(ws); w.dataset.open = "0"; w.style.maxHeight = "";
+    w.textContent = ws.length ? ws.length + " note(s): " + ws.slice(0, 3).join(" | ") + (ws.length > 3 ? " (click for all)" : "") : "";
+  } catch (e) {
+    setStatus("", "⚠ " + e.message);
+  } finally {
+    building = false;
+    if (pending) { pending = false; build(); }
+  }
+}
+// ------------------------------------------------------------------ saved characters + save import
+function applySelection(loaded) {
+  for (const k of Object.keys(sel)) delete sel[k];
+  Object.assign(sel, { slots: {}, piercings: [], colors: {}, materials: {}, intensity: {}, equipment: {}, dyes: {},
+                       toggles: {}, custom_colors: {}, weathering: {} }, loaded);
+  $("race").value = sel.race;
+  renderRace(true);
+}
+async function refreshCharacters(selectName) {
+  const r = await (await fetch("/api/characters")).json();
+  const l = $("charlist"); l.innerHTML = "";
+  if (!r.characters.length) option(l, "", "No saved characters yet");
+  r.characters.forEach(c => option(l, c.name, c.name, c.name === selectName));
+}
+async function refreshSaves() {
+  const r = await (await fetch("/api/saves")).json();
+  const l = $("savelist"); l.innerHTML = "";
+  if (!r.saves.length) { option(l, "", r.dirs.length ? "No saves found" : "BG3 save folder not found"); return; }
+  r.saves.forEach(s_ => option(l, s_.path, s_.character + " — " + s_.save + "  (" + new Date(s_.mtime * 1000).toLocaleDateString() + ")"));
+}
+$("undobtn").onclick = () => goHist(-1);
+$("redobtn").onclick = () => goHist(1);
+document.addEventListener("keydown", e => {
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || /input|select|textarea/i.test(e.target.tagName)) return;
+  e.preventDefault(); goHist(e.shiftKey ? 1 : -1);
+});
+
+// ---- recent looks: a thumbnail of each distinct build
+let recent = store.get("bga.recent") || [];
+function addRecent() {
+  try {
+    const snap = JSON.stringify(sel);
+    const c = document.createElement("canvas"); c.width = 96; c.height = 120;
+    const src = renderer.domElement, sw = src.width, sh = src.height, cw = Math.min(sw, sh * 0.8);
+    c.getContext("2d").drawImage(src, (sw - cw) / 2, 0, cw, sh, 0, 0, 96, 120);
+    recent = [{ snap, img: c.toDataURL("image/jpeg", 0.7), name: $("charname").value || "" }].concat(recent.filter(r => r.snap !== snap)).slice(0, 16);
+    store.set("bga.recent", recent);
+  } catch (e) {}
+}
+function drawRecent() {
+  const g = $("recentgrid"); g.innerHTML = "";
+  if (!recent.length) { g.innerHTML = '<div class="msg">Nothing yet — looks appear here as you build them.</div>'; return; }
+  recent.forEach(r => {
+    const b = document.createElement("button"); b.className = "chip"; b.style.cssText = "padding:2px;display:grid;gap:2px";
+    b.innerHTML = '<img style="width:100%;border-radius:4px" src="' + r.img + '"><span style="font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></span>';
+    b.lastChild.textContent = r.name || "Look";
+    b.onclick = () => { applySelection(JSON.parse(r.snap)); schedule(0); $("recentpanel").style.display = "none"; };
+    g.appendChild(b);
+  });
+}
+popover("recentbtn", "recentpanel", drawRecent);
+$("recentclear").onclick = () => { recent = []; store.set("bga.recent", recent); drawRecent(); };
+
+// ---- remember layout: camera, open sections, capture settings
+controls.addEventListener("end", () => store.set("bga.cam", { p: camera.position.toArray(), t: controls.target.toArray() }));
+(() => { const c = store.get("bga.cam"); if (c && c.p && c.t) { camera.position.fromArray(c.p); controls.target.fromArray(c.t); controls.update(); } })();
+document.querySelectorAll("aside details").forEach(d => {
+  const k = "bga.open." + d.querySelector("summary").textContent.trim();
+  const v = store.get(k); if (v !== null && v !== undefined) d.open = v;
+  d.addEventListener("toggle", () => store.set(k, d.open));
+});
+["capbg", "capc1", "capc2", "capfloor", "capscale", "caplen", "expose", "exanim", "partyfmt"].forEach(id => {
+  const el = $(id); if (!el) return; const k = "bga.ui." + id, v = store.get(k);
+  if (v !== null && v !== undefined) { if (el.type === "checkbox") el.checked = v; else el.value = v; }
+  el.addEventListener("change", () => store.set(k, el.type === "checkbox" ? el.checked : el.value));
+});
+capCols();
+
+$("charsave").onclick = async () => {
+  const name = $("charname").value.trim() || "Character";
+  const r = await (await fetch("/api/characters/save", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, selection: sel }) })).json();
+  $("charmsg").className = "msg ok"; $("charmsg").textContent = "Saved " + r.name; refreshCharacters(r.name);
+};
+$("charload").onclick = async () => {
+  const name = $("charlist").value; if (!name) return;
+  const r = await (await fetch("/api/characters/load?name=" + encodeURIComponent(name))).json();
+  $("charname").value = r.name || name; $("exname").value = r.name || name;
+  applySelection(r.selection); $("charmsg").className = "msg"; $("charmsg").textContent = "Loaded " + name;
+};
+$("chardel").onclick = async () => {
+  const name = $("charlist").value; if (!name) return;
+  await fetch("/api/characters/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+  $("charmsg").className = "msg"; $("charmsg").textContent = "Deleted " + name; refreshCharacters();
+};
+// origin characters: race, body, head, hair, colours and starting outfit from the game's own definitions
+// (loaded once the game data is ready: on a first run the index is still being built at page load)
+async function loadGameChars() {
+  try {
+    const r = await (await fetch("/api/origins")).json();
+    const box = $("originpick"); box.innerHTML = "";
+    const opts = (r.origins || []).map(o => ({ uuid: o.id, name: o.name,
+      group: o.group === "NPCS" ? "NPCs" : o.group === "CREATURES" ? "CREATURES & DEVILS" : "ORIGINS",
+      icon: o.portrait ? iconUrl("portrait:" + o.portrait) : (o.head_visual ? iconUrl("mesh:" + o.head_visual) : null),
+      sub: Object.keys(o.selection.equipment || {}).length + " outfit pieces" }));
+    box.appendChild(optCombo("Game character", opts, () => "", id => {
+      const o = (r.origins || []).find(x => x.id === id); if (!o) return;
+      applySelection(JSON.parse(JSON.stringify(o.selection)));
+      $("charname").value = o.name; $("exname").value = o.name;
+      const m = $("charmsg"); m.className = "msg ok";
+      m.textContent = "Loaded " + o.name + ". Their own colours are used until you pick a swatch.";
+    }, { none: "Choose…", noun: "game characters" }));
+  } catch (e) {}
+}
+$("saveimport").onclick = async () => {
+  const path = $("savelist").value; if (!path) return;
+  const m = $("charmsg"); m.className = "msg"; m.innerHTML = '<span class="spin"></span>Reading save…';
+  try {
+    const res = await fetch("/api/import_save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }) });
+    const r = await res.json(); if (!res.ok) throw new Error(r.error);
+    const who = $("savelist").selectedOptions[0].textContent.split(" — ")[0];
+    $("charname").value = who; $("exname").value = who;
+    const cands = r.candidates || [];
+    if (!cands.length) throw new Error("no character found");
+    const pick = (i) => {
+      const c = cands[i]; applySelection(c.selection);
+      m.className = "msg ok"; m.textContent = "Imported " + who + " (" + c.label + ")" + (c.notes.length ? " · " + c.notes.join("; ") : "");
+      const nm = c.name || who; $("charname").value = nm; $("exname").value = nm;
+      const sb = document.createElement("button"); sb.className = "btn"; sb.style.cssText = "display:block;margin-top:6px;padding:6px 10px";
+      sb.textContent = "Save as “" + nm + "” in my characters"; sb.onclick = () => { $("charsave").click(); sb.remove(); };
+      m.appendChild(sb);
+    };
+    const cl = $("candlist"); cl.innerHTML = "";
+    cands.forEach((c, i) => option(cl, i, (i === 0 ? "★ " : "") + c.label));
+    cl.onchange = () => pick(+cl.value);
+    $("candwrap").style.display = cands.length > 1 ? "" : "none";
+    pick(0);
+  } catch (e) { m.className = "msg err"; m.textContent = "Import failed: " + e.message; }
+};
+$("partyexport").onclick = async () => {
+  const path = $("savelist").value; if (!path) return;
+  const m = $("charmsg"); m.className = "msg";
+  m.innerHTML = '<span class="spin"></span>Exporting the party (full-resolution textures — this takes a few minutes)…';
+  $("partyexport").disabled = true;
+  try {
+    const r = await fetch("/api/export_party", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, format: $("partyfmt").value, max_tex: +$("extex").value, arkit: $("exarkit").checked }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    m.className = "msg ok"; m.textContent = "Exported " + j.files.length + " characters to " + j.path +
+      (j.warnings.length ? " · " + j.warnings.slice(0, 4).join("; ") : "");
+  } catch (e) { m.className = "msg err"; m.textContent = "Party export failed: " + e.message; }
+  $("partyexport").disabled = false;
+};
+$("auto").onchange = () => { if ($("auto").checked) schedule(0); };
+if (!store.get("bga.lights.v2")) { store.set("bga.lights.v2", true); store.set("bga.lights", "gameethereal"); }   // new default
+$("lights").value = store.get("bga.lights") || "gameethereal"; applyLights($("lights").value);
+$("lights").onchange = () => applyLights($("lights").value);
+$("anim").onchange = () => { if (!$("anim").checked && mixer) { mixer.setTime(0); } };
+$("tex").onchange = () => schedule(0);
+const ARKIT = ["eyeBlinkLeft","eyeBlinkRight","eyeLookUpLeft","eyeLookUpRight","eyeLookDownLeft","eyeLookDownRight",
+  "eyeLookInLeft","eyeLookInRight","eyeLookOutLeft","eyeLookOutRight","eyeSquintLeft","eyeSquintRight","eyeWideLeft",
+  "eyeWideRight","browDownLeft","browDownRight","browInnerUp","browOuterUpLeft","browOuterUpRight","cheekPuff",
+  "cheekSquintLeft","cheekSquintRight","noseSneerLeft","noseSneerRight","jawOpen","jawForward","jawLeft","jawRight",
+  "mouthClose","mouthFunnel","mouthPucker","mouthLeft","mouthRight","mouthSmileLeft","mouthSmileRight","mouthFrownLeft",
+  "mouthFrownRight","mouthDimpleLeft","mouthDimpleRight","mouthStretchLeft","mouthStretchRight","mouthRollLower",
+  "mouthRollUpper","mouthShrugLower","mouthShrugUpper","mouthPressLeft","mouthPressRight","mouthLowerDownLeft",
+  "mouthLowerDownRight","mouthUpperUpLeft","mouthUpperUpRight","tongueOut"];
+ARKIT.forEach(n => option($("faceshape"), n, n));
+function applyFace() {
+  if (!model) return;
+  const name = $("faceshape").value, amt = +$("faceamt").value;
+  model.traverse(o => { if (o.isMesh && o.morphTargetDictionary) {
+    o.morphTargetInfluences.fill(0);
+    const i = o.morphTargetDictionary[name]; if (i !== undefined) o.morphTargetInfluences[i] = amt; } });
+}
+$("astral").onchange = () => setAstral($("astral").checked).catch(e => setStatus("", "⚠ " + e.message));
+$("faceshape").onchange = applyFace; $("faceamt").oninput = applyFace;
+try { $("exarkit").checked = store.get("bga.arkit") !== false; } catch (e) {}
+$("exarkit").onchange = () => store.set("bga.arkit", $("exarkit").checked);
+try { $("exaxes").checked = store.get("bga.axes") !== false; } catch (e) {}
+$("exaxes").onchange = () => store.set("bga.axes", $("exaxes").checked);
+try { const v = store.get("bga.extex"); if (v) $("extex").value = v; } catch (e) {}
+$("extex").onchange = () => store.set("bga.extex", $("extex").value);
+$("random").onclick = () => {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  for (const [slot, opts] of Object.entries(menu.slots)) if (opts.length && slot !== "Piercing" && slot !== "Private Parts") sel.slots[slot] = pick(opts).uuid;
+  for (const [cat, list] of Object.entries(menu.colors)) if (list.length) sel.colors[cat] = pick(list).uuid;
+  for (const k of ["Tattoo", "Makeup"]) if (menu.materials[k]?.length) sel.materials[k] = pick(menu.materials[k]).uuid;
+  renderAppearance(); renderColors(); renderMarkings(); schedule(0);
+};
+
+// ------------------------------------------------------------------ export
+document.querySelectorAll("[data-fmt]").forEach(b => b.onclick = async () => {
+  const m = $("exmsg"); m.className = "msg"; m.innerHTML = '<span class="spin"></span>Exporting ' + b.textContent + " (full-resolution textures)…";
+  document.querySelectorAll("[data-fmt]").forEach(x => x.disabled = true);
+  try {
+    const r = await fetch("/api/export", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selection: sel, format: b.dataset.fmt, name: $("exname").value, max_tex: +$("extex").value, arkit: $("exarkit").checked,
+        motion: exportMotion() }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    m.className = "msg ok"; m.textContent = "Saved: " + j.path;
+  } catch (e) { m.className = "msg err"; m.textContent = e.message; }
+  document.querySelectorAll("[data-fmt]").forEach(x => x.disabled = false);
+  $("fbxbtn").disabled = $("fbxbtn").title !== "";
+});
+
+// ------------------------------------------------------------------ item dropdown with icons
+const iconUrl = name => "/api/icon?name=" + encodeURIComponent(name);
+const iconIO = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; const el = e.target; iconIO.unobserve(el);
+  const im = new Image(); im.onload = () => { el.style.backgroundImage = "url(" + el.dataset.src + ")"; };
+  im.onerror = () => el.classList.add("missing"); im.src = el.dataset.src;
+}), { rootMargin: "300px" });
+function iconBox(item, cls) {
+  const ic = document.createElement("span"); ic.className = cls + (item && item.icon ? "" : " missing");
+  if (item && item.icon) { ic.dataset.src = item.icon; iconIO.observe(ic); }      // icon is already a URL
+  return ic;
+}
+let openCombo = null;
+function closeCombo() { if (openCombo) { openCombo.remove(); openCombo = null; } }
+document.addEventListener("mousedown", e => { if (openCombo && !openCombo.contains(e.target) && !e.target.closest(".combo")) closeCombo(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeCombo(); });
+document.querySelector("aside").addEventListener("scroll", closeCombo);
+// opts: [{uuid, name, sub, icon (url or null), mod}] ; cfg: {none: label for an empty choice or null, noun, iconless}
+function optCombo(label, opts, get, pick, cfg = {}) {
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "combo";
+  const icons = !cfg.iconless;
+  const paint = () => {
+    const it = opts.find(i => i.uuid === get()); btn.innerHTML = "";
+    const tx = document.createElement("span"); tx.className = "ct";
+    const b = document.createElement("b"); b.textContent = it ? it.name : (cfg.none || "—");
+    const sm = document.createElement("small"); sm.textContent = it ? (it.sub || "") + (it.mod ? (it.sub ? " · " : "") + it.mod : "") : opts.length + " " + (cfg.noun || "options");
+    tx.append(b, sm);
+    const ar = document.createElement("span"); ar.className = "ca"; ar.textContent = "▾";
+    if (icons) btn.append(iconBox(it, "ci")); btn.append(tx, ar);
+  };
+  paint();
+  btn.onclick = () => {
+    if (openCombo && openCombo.dataset.slot === label) { closeCombo(); return; }
+    closeCombo();
+    const dd = document.createElement("div"); dd.className = "dropdown"; dd.dataset.slot = label;
+    const q = document.createElement("input"); q.type = "search"; q.placeholder = "Search " + opts.length + " " + (cfg.noun || "options") + "…";
+    const list = document.createElement("div"); list.className = "dl";
+    if (icons && opts.length > 8) dd.classList.add("wide");
+    dd.append(q, list); document.body.appendChild(dd); openCombo = dd;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom - 12, above = r.top - 12;
+    dd.style.left = r.left + "px"; dd.style.width = Math.max(r.width, 340) + "px";
+    if (below >= 320 || below >= above) { dd.style.top = (r.bottom + 4) + "px"; dd.style.maxHeight = Math.min(600, below) + "px"; }
+    else { dd.style.bottom = (innerHeight - r.top + 4) + "px"; dd.style.maxHeight = Math.min(600, above) + "px"; }
+    const row = (it, name, sub) => {
+      const o = document.createElement("div"); o.className = "opt" + ((it ? it.uuid : "") === (get() || "") ? " on" : "");
+      const tx = document.createElement("span"); tx.className = "ct";
+      const b = document.createElement("b"); b.textContent = name; const sm = document.createElement("small"); sm.textContent = sub || "";
+      tx.append(b, sm); if (icons) o.append(iconBox(it, "ci big")); o.append(tx);
+      o.title = name + (sub ? "\n" + sub : "");
+      o.onclick = () => { pick(it ? it.uuid : ""); paint(); closeCombo(); };
+      return o;
+    };
+    const draw = () => {
+      const f = q.value.toLowerCase(); list.innerHTML = "";
+      if (cfg.none) list.appendChild(row(null, cfg.none, ""));
+      const hit = opts.filter(i => !f || i.name.toLowerCase().includes(f) || (i.sub || "").toLowerCase().includes(f) || (i.mod || "").toLowerCase().includes(f));
+      const groups = {};
+      hit.forEach(i => { const g = i.group || (i.mod ? "MODS · " + i.mod : ""); (groups[g] = groups[g] || []).push(i); });
+      for (const [g, lst] of Object.entries(groups).sort((a, b) => (a[0] ? 1 : 0) - (b[0] ? 1 : 0))) {
+        if (g) { const h = document.createElement("div"); h.className = "dh"; h.textContent = g; list.appendChild(h); }
+        lst.slice(0, 800).forEach(i => list.appendChild(row(i, i.name, i.sub)));
+      }
+      if (!hit.length) { const h = document.createElement("div"); h.className = "dh"; h.textContent = "No matches"; list.appendChild(h); }
+      list.querySelector(".opt.on")?.scrollIntoView({ block: "center" });
+    };
+    q.oninput = draw; draw(); if (opts.length > 8) q.focus(); else q.style.display = "none";
+  };
+  return btn;
+}
+const ccIcon = (slot, id) => id ? iconUrl("cc:" + slot + ":" + id + ":" + (sel.body_type === 1 ? "1" : "0")) : null;
+
+// ------------------------------------------------------------------ first launch / game folder
+let booted = false;
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+function showSetup(st, cancellable) {
+  $("setup").classList.add("on");
+  $("setupcancel").style.display = cancellable ? "" : "none";
+  const f = $("setupfound"); f.innerHTML = "";
+  if (st.detected && st.detected.length) {
+    const t = document.createElement("div"); t.className = "msg"; t.textContent = "Found on this computer:"; f.appendChild(t);
+    st.detected.forEach(d => { const b = document.createElement("button"); b.className = "btn ghost"; b.textContent = d;
+      b.onclick = () => { $("setuppath").value = d; }; f.appendChild(b); });
+  }
+  $("setuppath").value = st.data_dir || st.saved || (st.detected || [])[0] || "";
+  const m = $("setupmsg"); m.className = "msg" + (st.message ? " err" : ""); m.textContent = st.message || "";
+}
+async function waitReady() {
+  for (;;) {
+    const st = await (await fetch("/api/setup")).json();
+    $("gamedir").textContent = st.data_dir || "—";
+    if (st.state === "ready") {
+      $("setup").classList.remove("on");
+      if (!booted) { booted = true; refreshCharacters(); refreshSaves(); await loadRaces(); loadGameChars();
+      }
+      else { await loadRaces(); }
+      return;
+    }
+    if (st.state === "setup") { showSetup(st, false); setStatus("", "Choose your game folder"); return; }
+    setStatus("busy", "Reading game data… the first run indexes the game, which takes a minute or two");
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+$("setupbrowse").onclick = async () => {
+  const m = $("setupmsg"); m.className = "msg"; m.textContent = "Waiting for the folder picker…";
+  try {
+    const j = await postJSON("/api/setup/pick", { start: $("setuppath").value });
+    if (j.path) $("setuppath").value = j.data_dir || j.path;
+    m.className = "msg" + (j.path && !j.data_dir ? " err" : "");
+    m.textContent = !j.path ? "" : j.data_dir ? "Looks good." : "That folder doesn't contain the game's data files.";
+  } catch (e) { m.className = "msg err"; m.textContent = e.message; }
+};
+$("setupgo").onclick = async () => {
+  const m = $("setupmsg"); m.className = "msg"; m.innerHTML = '<span class="spin"></span>Checking…';
+  try { await postJSON("/api/setup", { path: $("setuppath").value }); $("setup").classList.remove("on"); await waitReady(); }
+  catch (e) { m.className = "msg err"; m.textContent = e.message; }
+};
+$("setupcancel").onclick = () => $("setup").classList.remove("on");
+$("changedir").onclick = async () => showSetup(await (await fetch("/api/setup")).json(), true);
+
+waitReady().catch(e => setStatus("", "⚠ " + e.message));
+</script>
+</body>
+</html>
