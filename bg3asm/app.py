@@ -230,7 +230,7 @@ class Engine(object):
         cands = [c for c in savegame.read_save(self.gd, save_path) if c.get("party")]
         if not cands:
             raise RuntimeError("no party members found in this save")
-        folder = os.path.join(out_dir, os.path.basename(os.path.dirname(save_path)).split("__")[-1] or "Party")
+        folder = _unique(os.path.join(out_dir, os.path.basename(os.path.dirname(save_path)).split("__")[-1] or "Party"))
         done, warns = [], []
         for c in cands:
             name = c.get("name") or c["label"].split(" · ")[0]
@@ -468,7 +468,7 @@ class Engine(object):
         safe = "".join(ch if ch.isalnum() or ch in "-_ " else "_" for ch in name).strip() or "character"
         os.makedirs(out_dir, exist_ok=True)
         if fmt == "glb":
-            path = os.path.join(out_dir, safe + ".glb")
+            path = _unique(os.path.join(out_dir, safe + ".glb"))
             write_glb(scene, path, rec, images, name=safe, morphs=morphs, animation=animation, pose=pose,
                       heartbeat=heartbeat)
             finish(path)
@@ -481,13 +481,13 @@ class Engine(object):
             tmp = os.path.join(self.work_dir, "_cache", "vrm_src.glb")
             write_glb(scene, tmp, rec, images, name=safe, morphs=morphs)
             finish(tmp)
-            path = os.path.join(out_dir, safe + ".vrm")
+            path = _unique(os.path.join(out_dir, safe + ".vrm"))
             with open(tmp, "rb") as f:
                 data = glb_to_vrm(f.read(), name=name)
             with open(path, "wb") as f:
                 f.write(data)
             return path, rec["warnings"]
-        folder = os.path.join(out_dir, safe)
+        folder = _unique(os.path.join(out_dir, safe))
         os.makedirs(os.path.join(folder, "textures"), exist_ok=True)
         glb = os.path.join(folder, safe + ".glb")
         write_glb(scene, glb, rec, images, name=safe, morphs=morphs, animation=animation, pose=pose,
@@ -519,6 +519,17 @@ class Engine(object):
                 raise RuntimeError("Blender FBX export failed:\n" + (r.stdout[-2000:] + r.stderr[-2000:]))
             return fbx, rec["warnings"]
         return folder, rec["warnings"]
+
+
+def _unique(path):
+    """Never overwrite an earlier export: "Karlach.glb" -> "Karlach (2).glb", folders likewise."""
+    if not os.path.exists(path):
+        return path
+    base, ext = os.path.splitext(path) if not os.path.isdir(path) else (path, "")
+    n = 2
+    while os.path.exists("%s (%d)%s" % (base, n, ext)):
+        n += 1
+    return "%s (%d)%s" % (base, n, ext)
 
 
 BLENDER_FINISH = r'''

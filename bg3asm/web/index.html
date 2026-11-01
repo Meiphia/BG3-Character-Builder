@@ -441,6 +441,20 @@ function findTail() {
     wingBones.push([o, o.quaternion.clone(), d, p.x >= 0 ? 1 : -1]);
   });
 }
+// free everything the previous build put on the GPU: geometry, materials and their textures (the fire
+// layers and pose helpers too), or every rebuild leaves a full set of 1-2K textures behind
+function disposeModel(root) {
+  const mats = new Set();
+  root.traverse(o => {
+    o.geometry?.dispose();
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m && mats.add(m));
+  });
+  for (const m of mats) {
+    for (const k of Object.keys(m)) { const v = m[k]; if (v && v.isTexture && v !== whiteTex) v.dispose(); }
+    m.dispose();
+  }
+  fireShells = []; heatMats = [];
+}
 let wingBones = [], chestBones = [], clothChains = [];
 // cloth chains (added by the assembler under capes, tabards, skirt panels): verlet particles that follow the
 // animated pose with a bit of lag, swing and gravity, then aim each joint at its particle
@@ -598,17 +612,18 @@ function attachJoint(b) {
 document.querySelectorAll("[data-ptool]").forEach(b => b.onclick = () => setPoseTool(b.dataset.ptool));
 setPoseTool(poseTool);
 let poseMode = false, joints = [];
+const jointGeo = new THREE.SphereGeometry(0.012, 10, 8);
 const SKIP_JOINT = /lip|lid|brow|cheek|nose|smile|tongue|teeth|eye|ear|Dummy|Tip|_end|Sheath|Twist|Mouth|Chin|Pupil|Squint|Corner|Breast|Wing|Cloth_/i;
 function setPoseMode(on) {
   poseMode = on; $("posebtn").classList.toggle("on", on);
-  joints.forEach(j => j.parent && j.parent.remove(j)); joints = [];
+  joints.forEach(j => { j.parent && j.parent.remove(j); j.material.dispose(); }); joints = [];
   gizmo.detach(); gizmoT.detach();
   $("posetools").style.display = on ? "inline-flex" : "none";
-  ikTargets.forEach(t => scene.remove(t.handle)); ikTargets = [];
+  ikTargets.forEach(t => { scene.remove(t.handle); t.handle.geometry.dispose(); t.handle.material.dispose(); }); ikTargets = [];
   if (!on || !model) { setStatus("", ""); return; }
   $("anim").checked = false;                       // hold the current frame while posing
   $("expose").value = "frame";
-  const geo = new THREE.SphereGeometry(0.012, 10, 8);
+  const geo = jointGeo;
   model.traverse(o => {
     if (!o.isBone || SKIP_JOINT.test(o.name)) return;
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xe8b04a, depthTest: false, transparent: true, opacity: 0.85 }));
@@ -696,7 +711,7 @@ function solveLimb(t) {
 }
 function solveAllIK(except) { for (const t of ikTargets) if (t.pinned && t !== except) solveLimb(t); }
 function makeIK() {
-  ikTargets.forEach(t => scene.remove(t.handle)); ikTargets = [];
+  ikTargets.forEach(t => { scene.remove(t.handle); t.handle.geometry.dispose(); t.handle.material.dispose(); }); ikTargets = [];
   if (!model) return;
   const byName = {}; model.traverse(o => { if (o.isBone) byName[o.name] = o; });
   for (const names of LIMBS) {
@@ -1374,7 +1389,7 @@ async function build() {
     const info = JSON.parse(res.headers.get("X-Build-Info") || "{}");
     const buf = await res.arrayBuffer();
     const gltf = await new GLTFLoader().parseAsync(buf, "");
-    if (model) { scene.remove(model); model.traverse(o => { o.geometry?.dispose(); }); }
+    if (model) { scene.remove(model); disposeModel(model); }
     model = gltf.scene;
     model.traverse(o => { if (o.isMesh) { o.frustumCulled = false; upgradeMaterial(o); } });
     scene.add(model);

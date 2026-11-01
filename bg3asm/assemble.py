@@ -465,10 +465,12 @@ def _components(indices, pos):
 def _add_cloth_bones(scene, proxies):
     """BG3 simulates capes, tabards, skirt panels and loincloths with a hidden cloth proxy; outside the game
     they hang rigid. For every free-hanging piece of a proxy, add bone chains (one per ~15 cm of width) down
-    its length and blend the real mesh onto them from where it's pinned to its free edge, so spring bones /
-    physics in Blender, Unity, VRM apps (and the viewer preview) can swing it."""
+    its length, then weight the real mesh onto them. Weights are worked out on the proxy and carried to the
+    real mesh by a soft blend of the nearest proxy vertices, so neighbouring panels, seams and the two
+    stacked sheets a cape is made of (outside + lining) all get the same smooth weights and never tear apart."""
     import numpy as np
     made = 0
+    levels = np.array(CLOTH_LEVELS[:-1])
     for part, pmeshes in proxies.values():
         render = [sm for sm in scene.meshes if sm.part is part and sm.joints and sm.weights]
         if not render:
@@ -477,18 +479,23 @@ def _add_cloth_bones(scene, proxies):
         lab = np.concatenate([_components(m.indices, m.positions) + 1000 * k for k, m in enumerate(pmeshes)])
         slot = (part.get("slot") or "Cloth").replace(" ", "")
         RV = [np.asarray(sm.mesh.positions, dtype=np.float64) for sm in render]
-        # which proxy piece each render vertex belongs to (nearest proxy vertex, within 5 cm)
-        owner = []
+        K = min(6, len(P))
+        # nearest proxy vertices of every render vertex (indices + distances), computed once
+        knn = []
         for V in RV:
-            o = np.full(len(V), -1, dtype=np.int64)
+            idx = np.zeros((len(V), K), dtype=np.int64)
+            dist = np.zeros((len(V), K))
             for a in range(0, len(V), 1500):
                 d = ((V[a:a + 1500, None, :] - P[None, :, :]) ** 2).sum(-1)
-                j = d.argmin(1)
-                ok = d[np.arange(len(j)), j] < 0.05 ** 2
-                o[a:a + 1500] = np.where(ok, lab[j], -1)
-            owner.append(o)
+                part_idx = np.argpartition(d, K - 1, axis=1)[:, :K] if K < len(P) else np.tile(np.arange(len(P)), (len(d), 1))
+                idx[a:a + 1500] = part_idx
+                dist[a:a + 1500] = np.sqrt(np.take_along_axis(d, part_idx, 1))
+            knn.append((idx, dist))
+        pv_blend = np.zeros(len(P))                    # 0 = stays on the body, 1 = fully on the chains
+        pv_map = [None] * len(P)                       # chain bone -> weight (sums to 1) per proxy vertex
         for ci, comp in enumerate(np.unique(lab)):
-            C = P[lab == comp]
+            cidx = np.nonzero(lab == comp)[0]
+            C = P[cidx]
             top, bot = C[:, 1].max(), C[:, 1].min()
             height = top - bot
             if height < 0.15 or len(C) < 12:
@@ -496,18 +503,19 @@ def _add_cloth_bones(scene, proxies):
             xz = C[:, [0, 2]]
             ctr = xz.mean(0)
             cov = np.cov((xz - ctr).T) if len(C) > 2 else np.eye(2)
-            w, vecs = np.linalg.eigh(cov)
+            _w, vecs = np.linalg.eigh(cov)
             u = vecs[:, -1]
             sproj = (xz - ctr) @ u
             smin, smax = sproj.min(), sproj.max()
             width = smax - smin
             ncol = int(np.clip(round(width / 0.15), 1, 5))
             col_s = [smin + width * (j + 0.5) / ncol for j in range(ncol)]
-            # the body bone the piece hangs from: dominant influence of its top band in the render mesh
+            # the body bone the piece hangs from: dominant influence of the render mesh near its top band
+            topset = set(cidx[C[:, 1] > top - height * 0.12].tolist())
             votes = {}
-            for sm, V, o in zip(render, RV, owner):
-                sel = np.nonzero((o == comp) & (V[:, 1] > top - height * 0.12))[0]
-                for vi in sel[:400]:
+            for sm, (idx, dist) in zip(render, knn):
+                near = np.nonzero(np.isin(idx[:, 0], list(topset)) & (dist[:, 0] < 0.1))[0]
+                for vi in near[:400]:
                     for jn, wt in zip(sm.joints[vi], sm.weights[vi]):
                         votes[jn] = votes.get(jn, 0.0) + wt
             if not votes:
@@ -520,11 +528,7 @@ def _add_cloth_bones(scene, proxies):
                 for li, lv in enumerate(CLOTH_LEVELS):
                     y = top - height * lv
                     near = band & (np.abs(C[:, 1] - y) < max(height * 0.08, 0.02))
-                    if near.any():
-                        pos = C[near].mean(0)
-                    else:
-                        pos = np.array([ctr[0] + u[0] * sc, y, ctr[1] + u[1] * sc])
-                        pos = np.array([pos[0], y, pos[2]])
+                    pos = C[near].mean(0) if near.any() else np.array([ctr[0] + u[0] * sc, y, ctr[1] + u[1] * sc])
                     wm = mat_identity()
                     wm[12:15] = [float(x) for x in pos]
                     name = "Cloth_%s_%d_%d_%d" % (slot, ci, j, li)
@@ -540,41 +544,50 @@ def _add_cloth_bones(scene, proxies):
             if not chains:
                 continue
             made += 1
-            levels = np.array(CLOTH_LEVELS[:-1])
-            for sm, V, o in zip(render, RV, owner):
-                sel = np.nonzero(o == comp)[0]
-                if not len(sel):
-                    continue
-                joints, weights = list(sm.joints), list(sm.weights)
-                vs = (V[sel][:, [0, 2]] - ctr) @ u
-                tt = np.clip((top - V[sel][:, 1]) / height, 0, 1)
-                for k_, vi in enumerate(sel):
-                    t = tt[k_]
-                    blend = float(np.clip((t - 0.1) / 0.25, 0, 1))
-                    blend = blend * blend * (3 - 2 * blend)
-                    if blend <= 0.01:
-                        continue
-                    # columns: linear between the two nearest; levels: linear between the two nearest joints
-                    cf = np.clip((vs[k_] - col_s[0]) / max(width / ncol, 1e-6), 0, ncol - 1) if ncol > 1 else 0.0
-                    c0 = int(np.floor(cf)); c1 = min(c0 + 1, ncol - 1); cw = cf - c0
-                    lf = float(np.interp(t, levels, np.arange(len(levels))))
-                    l0 = int(np.floor(lf)); l1 = min(l0 + 1, len(levels) - 1); lw = lf - l0
-                    new = {}
-                    for cc, a in ((c0, 1 - cw), (c1, cw)):
-                        if cc >= len(chains):
-                            continue
-                        for ll, b in ((l0, 1 - lw), (l1, lw)):
+            for k_, pi in enumerate(cidx):
+                t = float(np.clip((top - C[k_, 1]) / height, 0, 1))
+                bl = float(np.clip((t - 0.1) / 0.25, 0, 1))
+                pv_blend[pi] = bl * bl * (3 - 2 * bl)
+                cf = float(np.clip((sproj[k_] - col_s[0]) / max(width / ncol, 1e-6), 0, ncol - 1)) if ncol > 1 else 0.0
+                c0 = int(np.floor(cf)); c1 = min(c0 + 1, len(chains) - 1); cw = cf - c0
+                c0 = min(c0, len(chains) - 1)
+                lf = float(np.interp(t, levels, np.arange(len(levels))))
+                l0 = int(np.floor(lf)); l1 = min(l0 + 1, len(levels) - 1); lw = lf - l0
+                mp = {}
+                for cc, a in ((c0, 1 - cw), (c1, cw)):
+                    for ll, b2 in ((l0, 1 - lw), (l1, lw)):
+                        if a * b2 > 0:
                             bone = chains[cc][ll]
-                            new[bone] = new.get(bone, 0.0) + a * b * blend
-                    for jn, wt in zip(joints[vi], weights[vi]):
-                        if wt > 0:
-                            new[jn] = new.get(jn, 0.0) + wt * (1 - blend)
-                    top4 = sorted(new.items(), key=lambda kv: -kv[1])[:4]
-                    tot = sum(x for _, x in top4) or 1.0
-                    js = [b for b, _ in top4] + [0] * (4 - len(top4))
-                    ws = [x / tot for _, x in top4] + [0.0] * (4 - len(top4))
-                    joints[vi], weights[vi] = js, ws
-                sm.joints, sm.weights = joints, weights
+                            mp[bone] = mp.get(bone, 0.0) + a * b2
+                pv_map[pi] = mp
+        if not pv_blend.any():
+            continue
+        # carry the proxy weights over to the real mesh: inverse-distance blend of the nearest proxy vertices
+        for sm, (idx, dist) in zip(render, knn):
+            wk = 1.0 / (dist + 0.03) ** 2          # soft: sheets ~1 cm apart get (nearly) the same mix
+            wk /= wk.sum(1, keepdims=True)
+            B = (wk * pv_blend[idx]).sum(1)
+            todo = np.nonzero(B > 0.01)[0]
+            if not len(todo):
+                continue
+            joints, weights = list(sm.joints), list(sm.weights)
+            for vi in todo:
+                new = {}
+                for pi, w_ in zip(idx[vi], wk[vi]):
+                    bl = pv_blend[pi]
+                    if bl <= 0 or pv_map[pi] is None:
+                        continue
+                    for bone, x in pv_map[pi].items():
+                        new[bone] = new.get(bone, 0.0) + w_ * bl * x
+                keep = 1.0 - float(B[vi])
+                for jn, wt in zip(joints[vi], weights[vi]):
+                    if wt > 0:
+                        new[jn] = new.get(jn, 0.0) + wt * keep
+                top4 = sorted(new.items(), key=lambda kv: -kv[1])[:4]
+                tot = sum(x for _, x in top4) or 1.0
+                joints[vi] = [b_ for b_, _ in top4] + [0] * (4 - len(top4))
+                weights[vi] = [x / tot for _, x in top4] + [0.0] * (4 - len(top4))
+            sm.joints, sm.weights = joints, weights
     if made:
         scene.warnings.append("cloth bones added to %d hanging piece(s)" % made)
 
