@@ -165,9 +165,11 @@ def build_recipe(gd, sel, creator=None):
             continue
         if _nz(d.get("MaterialPresetUUID")):
             _apply_preset(char_ov, gd.presets.get(d["MaterialPresetUUID"]), gd)
-        else:  # "None" choices zero the corresponding index
-            for p in {"Tattoo": ("TattooIndex",), "Makeup": ("MakeUpIndex",), "Scar": ("ScarIndex", "Scar_Weight")}.get(kind, ()):
-                char_ov["scalar"][p] = 0.0
+        else:  # "None" choices: no atlas cell (index 0 is a real design, e.g. the "Migration" tattoo)
+            for p in {"Tattoo": ("TattooIndex",), "Makeup": ("MakeUpIndex",), "Scar": ("ScarIndex",)}.get(kind, ()):
+                char_ov["scalar"][p] = -1.0
+            if kind == "Scar":
+                char_ov["scalar"]["Scar_Weight"] = 0.0
 
     for cat, (params, base_type) in COLOR_PARAMS.items():
         cid = colors.get(cat)
@@ -562,7 +564,7 @@ def _origin_head_ov(gd, c, char_ov, race, sub, bt, bs):
     if atlas:
         ov["tex"]["TattooAtlas"] = atlas
     if "TattooIndex" not in ov["scalar"]:
-        ov["scalar"]["TattooIndex"] = 0.0
+        ov["scalar"]["TattooIndex"] = -1.0
     return ov
 
 

@@ -270,6 +270,8 @@ def write_glb(scene, path, recipe=None, images=None, name="Character", animation
         info = mats.get(key, {})
         m = {"name": info.get("name") or str(key), "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.7},
              "extras": {"bg3_shader": info.get("shader"), "bg3_material": key}}
+        if float((info.get("scalar") or {}).get("Use_HeartBeat") or 0) > 0:
+            m["extras"]["bga_heartbeat"] = float((info.get("scalar") or {}).get("BPM") or 33.0)
         fam = info.get("shader_family")
         if "Tearline" in (info.get("shader") or ""):
             m["alphaMode"] = "BLEND"

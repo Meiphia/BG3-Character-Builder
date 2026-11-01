@@ -270,6 +270,9 @@
 </main>
 
 <script type="module">
+// every change request carries the app's own header (the server refuses requests from other websites)
+{ const f0 = window.fetch.bind(window);
+  window.fetch = (u, o) => { o = o || {}; if (o.method && o.method.toUpperCase() !== "GET") o.headers = Object.assign({}, o.headers || {}, { "X-BGA": "1" }); return f0(u, o); }; }
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -550,7 +553,8 @@ function setupHeat() {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     // the engine plates and the glowing cracks over the body pulse with her heartbeat
-    if (/MetalParts|_Body_/.test(o.name)) mats.forEach(m => { if (m.emissiveMap && !heatMats.includes(m)) heatMats.push(m); });
+    // only materials the game marks as beating (Karlach's engine and cracks), not every glowing body
+    mats.forEach(m => { if (m.emissiveMap && (m.userData || {}).bga_heartbeat && !heatMats.includes(m)) heatMats.push(m); });
     if (o.isSkinnedMesh && /_NKD_(Body|Head|Tail)_/.test(o.name) && !/Eyes|Lashes|Tearline|Mouth|Scalp|Genital|Leaf|Nipple/.test(o.name))
       skins.push(o);
   });
@@ -1175,6 +1179,7 @@ function renderAppearance(keep) {
                             ["chest_physics", "Chest physics bones (jiggle in animation)"],
                             ["cloth_physics", "Cloth physics bones (capes, tabards, skirts)"]]) {
     if (k === "cloth_physics" && sel.toggles.cloth_physics === undefined) sel.toggles.cloth_physics = true;
+    if (k === "chest_physics" && sel.child) continue;            // never for children
     if (k === "chest_physics" && sel.toggles.chest_physics === undefined) sel.toggles.chest_physics = sel.body_type === 1;
     if (k === "tail" && !/tiefling/i.test(race)) continue;
     const l = document.createElement("label"); l.id = "tg_" + k;

@@ -26,7 +26,7 @@ from . import assemble as asm
 from .gltf import write_glb
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
-BAKE_VERSION = 2       # bump when bake.py changes what it produces (invalidates the on-disk texture cache)
+BAKE_VERSION = 3       # bump when bake.py changes what it produces (invalidates the on-disk texture cache)
 EQUIP_UI_SLOTS = ("Helmet", "Cloak", "Chest", "Gloves", "Boots", "Underwear", "Camp Clothes", "Camp Shoes",
                   "Main Hand", "Off Hand", "Ranged")    # no Amulet: jewelry has no worn model in BG3
 BLENDER_CANDIDATES = ["/Applications/Blender.app/Contents/MacOS/Blender",
@@ -356,6 +356,10 @@ class Engine(object):
                 try:
                     with open(f, "rb") as fh:
                         self._bake[h] = pickle.load(fh)
+                    try:
+                        os.utime(f)                 # mark as recently used for the cache pruning
+                    except OSError:
+                        pass
                     continue
                 except Exception:
                     pass
@@ -394,11 +398,23 @@ class Engine(object):
         return out
 
     @staticmethod
-    def _prune_bake_cache(disk, keep=1500):
+    def _prune_bake_cache(disk, keep=1500, max_bytes=2 * 1024 ** 3):
+        """Least-recently-used first, until under both the file count and ~2 GB (Ultra 4K bakes are big)."""
         try:
-            files = sorted((os.path.getmtime(os.path.join(disk, f)), f) for f in os.listdir(disk) if f.endswith(".pkl"))
-            for _t, f in files[:max(0, len(files) - keep)]:
+            files = []
+            for f in os.listdir(disk):
+                if f.endswith(".pkl"):
+                    st = os.stat(os.path.join(disk, f))
+                    files.append((st.st_mtime, st.st_size, f))
+            files.sort()
+            total = sum(sz for _t, sz, _f in files)
+            n = len(files)
+            for _t, sz, f in files:
+                if n <= keep and total <= max_bytes:
+                    break
                 os.remove(os.path.join(disk, f))
+                n -= 1
+                total -= sz
         except Exception:
             pass
 
@@ -619,7 +635,18 @@ def make_handler(holder, export_dir):
             n = int(self.headers.get("Content-Length") or 0)
             return json.loads(self.rfile.read(n) or b"{}")
 
+        def _trusted(self, post=False):
+            """Only the app's own page may talk to the server: the Host must be this loopback address
+            (stops DNS rebinding), and changes need a custom header, which other websites can't send
+            to us without a CORS preflight this server never answers (stops cross-site requests)."""
+            host = (self.headers.get("Host") or "").split(":")[0].lower()
+            if host not in ("127.0.0.1", "localhost"):
+                return False
+            return not post or self.headers.get("X-BGA") == "1"
+
         def do_GET(self):
+            if not self._trusted():
+                return self._send(403, {"error": "forbidden"})
             u = urlparse(self.path)
             q = {k: v[0] for k, v in parse_qs(u.query).items()}
             engine = holder.engine
@@ -680,6 +707,8 @@ def make_handler(holder, export_dir):
                 return self._send(500, {"error": str(e)})
 
         def do_POST(self):
+            if not self._trusted(post=True):
+                return self._send(403, {"error": "forbidden"})
             u = urlparse(self.path)
             engine = holder.engine
             try:

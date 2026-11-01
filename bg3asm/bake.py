@@ -601,7 +601,11 @@ def bake_hair(src, mat):
             gc = _vec(mat, "Hair_Scalp_Graying_Color", [0.7, 0.7, 0.7]) * 0.6
             col = col * (1 - gri * 0.6) + gc[None, None, :] * gri * 0.6
         # the scalp layer is a soft painted fade, strands show through its ID
-        alpha = np.clip(_smooth(alpha, 0.45, 0.25) * (0.55 + 0.6 * idf), _scal(mat, "Scalp_MinValue", 0.0), 1)
+        # Scalp_MinValue is the faint stubble tint *inside* the painted hairline; outside it (raw coverage ~0)
+        # the scalp must stay fully clear, or the mesh edge shows as a pale band across the forehead
+        inside = np.clip((alpha - 0.02) / 0.12, 0, 1)
+        alpha = np.clip(np.maximum(_smooth(alpha, 0.45, 0.25) * (0.55 + 0.6 * idf),
+                                   _scal(mat, "Scalp_MinValue", 0.0) * inside), 0, 1)
     rough = np.clip(_scal(mat, pre + "Roughness", 0.45) + _scal(mat, pre + "RoughnessContrast", 0.05) * (ident - 0.5) * 2, 0.5, 1)
     col = _bleed(col, alpha)
     return {"baseColor": np.concatenate([linear_to_srgb(col), alpha[..., None]], -1),
