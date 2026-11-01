@@ -1,5 +1,5 @@
 #!/bin/bash
-# Baldur's Gate Assembler launcher — double-click in Finder or run ./run.command
+# Mei's BG3 Character Builder launcher — double-click in Finder or run ./run.command
 # Creates a private Python environment in .venv on first run, then starts the app.
 cd "$(dirname "$0")"
 if [ ! -x .venv/bin/python ]; then

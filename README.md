@@ -20,18 +20,33 @@ with a live 3D preview. The game's `.pak` files are read in place: nothing is ex
   (humanoid map, expressions, spring bones for hair, tails, wings and cloth). Bones are re-oriented to world
   axes so rotations behave in Blender, Unity and face tracking.
 
-## Run
-**macOS:** double-click **Baldur's Gate Assembler.app** (keep it inside this folder for the first launch; after
-that you can move it to /Applications or the Dock). Because the app isn't signed, macOS may block it the first
-time: right-click it → **Open**, or run `xattr -dr com.apple.quarantine "Baldur's Gate Assembler.app"`.
-`run.command` does the same from Terminal.
+## Download
+Grab the latest version from the [Releases page](https://github.com/Meiphia/BG3-Character-Builder/releases):
+- **macOS (Apple Silicon or Intel):** unzip and drag **Mei's BG3 Character Builder** to Applications. The app isn't
+  signed by Apple, so the first time macOS will refuse to open it: click **Done**, then go to **System Settings →
+  Privacy & Security**, scroll down and click **Open Anyway**. (Or in Terminal:
+  `xattr -dr com.apple.quarantine "/Applications/Mei's BG3 Character Builder.app"`.)
+- **Windows:** unzip anywhere and run **Mei's BG3 Character Builder.exe**. If SmartScreen warns about an unknown
+  publisher, click **More info → Run anyway**.
 
-**Windows:** double-click `run.bat`. `build_windows.bat` makes a standalone `Baldur's Gate Assembler.exe` with PyInstaller.
+No Python needed. The app finds the game through Steam (or asks for the game folder). The first launch indexes
+the game (~1–2 minutes); after that it starts straight away. Its cache, saved characters and settings live in
+`~/Library/Application Support/Mei's BG3 Character Builder/` (macOS) or `%APPDATA%\Mei's BG3 Character Builder\`
+(Windows). Exports go to `~/Desktop/BG3 Exports/`.
+
+## Run from source
+**macOS:** double-click **Mei's BG3 Character Builder.app** in this folder (keep it here for the first launch; after
+that you can move it to /Applications or the Dock), or run `./run.command` in Terminal.
+**Windows:** double-click `run.bat`.
 
 You need **Python 3.10+** (python.org or Homebrew). The first launch creates a private environment in `.venv`
-and installs numpy, Pillow, lz4, zstandard and pywebview (`requirements.txt`). The app finds the game through
-Steam; the first launch indexes it (~1–2 minutes) into `_cache/`, after which it starts straight away.
-Exports go to `~/Desktop/BG3 Exports/`. Log (macOS app): `~/Library/Logs/Baldurs Gate Assembler.log`.
+and installs numpy, Pillow, lz4, zstandard and pywebview (`requirements.txt`). From source, the cache lives in
+`_cache/` next to the code. Log (macOS app): `~/Library/Logs/Meis BG3 Character Builder.log`.
+
+## Building a release
+Push a version tag (`git tag v1.1 && git push origin v1.1`): the Release workflow builds the macOS (Apple
+Silicon + Intel) and Windows apps with PyInstaller (`release.spec`) and attaches them to a draft release.
+Locally: `python -m PyInstaller --noconfirm release.spec` (or `build_windows.bat` on Windows).
 
 ## Status
 | Piece | State |

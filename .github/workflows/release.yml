@@ -1,0 +1,68 @@
+# Builds the app for macOS (Apple Silicon + Intel) and Windows when a version tag (v1.0, v1.1 ...) is pushed,
+# and attaches the zips to a draft GitHub release for that tag.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP: "Mei's BG3 Character Builder"
+  SLUG: Meis-BG3-Character-Builder
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, label: macOS-AppleSilicon }
+          - { os: macos-15-intel, label: macOS-Intel }
+          - { os: windows-latest, label: Windows }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: python -m PyInstaller --noconfirm release.spec
+      - name: Self-test and zip (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          "dist/$APP.app/Contents/MacOS/$APP" --selftest || { cat selftest-error.txt; exit 1; }
+          ditto -c -k --keepParent "dist/$APP.app" "$SLUG-${GITHUB_REF_NAME}-${{ matrix.label }}.zip"
+      - name: Self-test and zip (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "dist/$APP/$APP.exe" --selftest || { cat selftest-error.txt; exit 1; }
+          cd dist && 7z a -tzip "../$SLUG-${GITHUB_REF_NAME}-${{ matrix.label }}.zip" "$APP" > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: "*.zip"
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" *.zip --repo "$GITHUB_REPOSITORY" --draft \
+            --title "$GITHUB_REF_NAME" --notes "Draft: built by the Release workflow."

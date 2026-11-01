@@ -1,4 +1,4 @@
-"""Baldur's Gate Assembler — desktop app (local web UI + three.js viewport).
+"""Mei's BG3 Character Builder — desktop app (local web UI + three.js viewport).
 
     python3 -m bg3asm app [--data DIR] [--port 8765]
 
@@ -506,7 +506,7 @@ class Engine(object):
 
 
 BLENDER_FINISH = r'''
-# Baldur's Gate Assembler: finish materials after importing the .glb (Scripting tab > open > Run Script).
+# Mei's BG3 Character Builder: finish materials after importing the .glb (Scripting tab > open > Run Script).
 # Skin gets subsurface scattering, hair dithered transparency, eyes a wet clear coat.
 import bpy
 for mat in bpy.data.materials:
@@ -778,7 +778,7 @@ def _brand_app():
         from AppKit import NSApplication, NSImage
         info = NSBundle.mainBundle().localizedInfoDictionary() or NSBundle.mainBundle().infoDictionary()
         if info is not None:
-            info["CFBundleName"] = "Baldur's Gate Assembler"
+            info["CFBundleName"] = "Mei's BG3 Character Builder"
         icon = os.environ.get("BGA_APP_ICON") or os.path.join(WEB_DIR, "icon.png")
         if os.path.exists(icon):
             NSApplication.sharedApplication().setApplicationIconImage_(NSImage.alloc().initByReferencingFile_(icon))
@@ -813,13 +813,13 @@ def run(data_dir=None, port=8765, work_dir=None, open_window=True, vt_dirs=()):
         print("Game folder not set yet — the app will ask for it.")
     srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(holder, export_dir))
     url = "http://127.0.0.1:%d/" % port
-    print("Baldur's Gate Assembler running at %s  (Ctrl+C to quit)" % url)
+    print("Mei's BG3 Character Builder running at %s  (Ctrl+C to quit)" % url)
     if open_window:
         try:
             import webview  # pywebview: native window if installed
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             _brand_app()
-            webview.create_window("Baldur's Gate Assembler", url, width=1440, height=900)
+            webview.create_window("Mei's BG3 Character Builder", url, width=1440, height=900)
             webview.start()
             return
         except ImportError:

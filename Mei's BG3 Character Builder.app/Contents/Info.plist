@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>Baldur's Gate Assembler</string>
-  <key>CFBundleDisplayName</key><string>Baldur's Gate Assembler</string>
-  <key>CFBundleIdentifier</key><string>io.github.character-assemblers.baldurs-gate-assembler</string>
+  <key>CFBundleName</key><string>Mei's BG3 Character Builder</string>
+  <key>CFBundleDisplayName</key><string>Mei's BG3 Character Builder</string>
+  <key>CFBundleIdentifier</key><string>io.github.meiphia.bg3-character-builder</string>
   <key>CFBundleVersion</key><string>1.0</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>

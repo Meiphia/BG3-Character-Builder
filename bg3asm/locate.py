@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 REQUIRED = ("Shared.pak", "Gustav.pak")
-APP_NAME = "Baldur's Gate Assembler"
+APP_NAME = "Mei's BG3 Character Builder"
 
 
 # ---------------------------------------------------------------- settings
@@ -23,7 +23,16 @@ def config_dir():
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
     else:
         base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    return os.path.join(base, APP_NAME)
+    d = os.path.join(base, APP_NAME)
+    old = os.path.join(base, "Baldur's Gate Assembler")         # name before 1.0: keep the saved game folder
+    if not os.path.exists(os.path.join(d, "settings.json")) and os.path.exists(os.path.join(old, "settings.json")):
+        try:
+            import shutil
+            os.makedirs(d, exist_ok=True)
+            shutil.copy2(os.path.join(old, "settings.json"), os.path.join(d, "settings.json"))
+        except OSError:
+            pass
+    return d
 
 
 def _settings_path():

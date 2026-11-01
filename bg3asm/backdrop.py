@@ -161,7 +161,7 @@ def build(engine, out_path, max_tex=512, log=print):
 
     # ---------------------------------------------------------------- glTF (instanced static meshes)
     buf = _Buf()
-    gl = {"asset": {"version": "2.0", "generator": "Baldur's Gate Assembler backdrop"}, "scene": 0,
+    gl = {"asset": {"version": "2.0", "generator": "Mei's BG3 Character Builder backdrop"}, "scene": 0,
           "scenes": [{"nodes": []}], "nodes": [], "meshes": [], "materials": [], "textures": [],
           "images": [], "samplers": [{"magFilter": 9729, "minFilter": 9987}]}
     mat_index = {}

@@ -1,5 +1,5 @@
 @echo off
-rem Baldur's Gate Assembler launcher for Windows: double-click to start.
+rem Mei's BG3 Character Builder launcher for Windows: double-click to start.
 rem Creates a private Python environment in .venv on first run, then starts the app.
 cd /d "%~dp0"
 if not exist ".venv\Scripts\python.exe" (

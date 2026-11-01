@@ -1,23 +1,23 @@
 #!/bin/bash
-# Baldur's Gate Assembler — app launcher. Finds the project folder (the one holding bg3asm/), sets up its
+# Mei's BG3 Character Builder — app launcher. Finds the project folder (the one holding bg3asm/), sets up its
 # private Python environment on first launch, then starts the app window. Log: ~/Library/Logs/
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 # The project folder: the one the app sits in; remembered so the app can then live in /Applications or the Dock.
-CONF="$HOME/Library/Application Support/Baldur's Gate Assembler"
+CONF="$HOME/Library/Application Support/Mei's BG3 Character Builder"
 PROJ="$(dirname "$APP")"
 if [ -d "$PROJ/bg3asm" ]; then mkdir -p "$CONF" && printf '%s' "$PROJ" > "$CONF/project-path"
 else PROJ="$(cat "$CONF/project-path" 2>/dev/null)"; fi
-LOG="$HOME/Library/Logs/Baldurs Gate Assembler.log"
+LOG="$HOME/Library/Logs/Meis BG3 Character Builder.log"
 if [ ! -d "$PROJ/bg3asm" ]; then
-  osascript -e 'display alert "Baldur'"'"'s Gate Assembler" message "Can'"'"'t find the bg3asm folder. Open the app from inside its project folder once, then you can move it."'
+  osascript -e 'display alert "Mei'"'"'s BG3 Character Builder" message "Can'"'"'t find the bg3asm folder. Open the app from inside its project folder once, then you can move it."'
   exit 1
 fi
 cd "$PROJ"
 if [ ! -x .venv/bin/python ]; then
-  osascript -e 'display notification "First launch: installing components (a minute or two)…" with title "Baldur'"'"'s Gate Assembler"'
+  osascript -e 'display notification "First launch: installing components (a minute or two)…" with title "Mei'"'"'s BG3 Character Builder"'
   { python3 -m venv .venv && .venv/bin/python -m pip install -q --upgrade pip &&
     .venv/bin/python -m pip install -q numpy pillow lz4 zstandard pywebview; } >>"$LOG" 2>&1 || {
-    osascript -e 'display alert "Baldur'"'"'s Gate Assembler" message "Setup failed — is Python 3 installed? (Details in ~/Library/Logs/Baldurs Gate Assembler.log)"'
+    osascript -e 'display alert "Mei'"'"'s BG3 Character Builder" message "Setup failed — is Python 3 installed? (Details in ~/Library/Logs/Meis BG3 Character Builder.log)"'
     exit 1; }
 fi
 export BGA_APP_ICON="$APP/Contents/Resources/AppIcon.icns"

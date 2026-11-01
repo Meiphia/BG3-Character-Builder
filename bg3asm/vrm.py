@@ -82,7 +82,7 @@ def _write_glb(js, binc):
     return out
 
 
-def glb_to_vrm(data, name="Character", author="Baldur's Gate Assembler user"):
+def glb_to_vrm(data, name="Character", author="Mei's BG3 Character Builder user"):
     js, binc = _read_glb(data)
     nodes = js.get("nodes") or []
     by_name = {}

@@ -1,4 +1,4 @@
-"""Baldur's Gate Assembler — command line.
+"""Mei's BG3 Character Builder — command line.
 
   python3 -m bg3asm list     [--data DIR] [--out DIR]
   python3 -m bg3asm extract  PAK REGEX [--data DIR] [--out DIR] [--max-mb N]

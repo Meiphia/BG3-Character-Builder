@@ -219,7 +219,7 @@ def write_glb(scene, path, recipe=None, images=None, name="Character", animation
     morphs: optional {SceneMesh: [(name, vertex indices, offsets[n, 3])]} -> sparse morph targets (shape keys)
     animation: optional {"name", "times": [...], "rot": {bone: [[x,y,z,w] (BG3 space), ...]}}"""
     buf = _Buf()
-    gl = {"asset": {"version": "2.0", "generator": "Baldur's Gate Assembler"},
+    gl = {"asset": {"version": "2.0", "generator": "Mei's BG3 Character Builder"},
           "scene": 0, "scenes": [{"name": name, "nodes": []}], "nodes": [], "meshes": [],
           "materials": [], "skins": [], "textures": [], "images": [], "samplers": [{}]}
 
